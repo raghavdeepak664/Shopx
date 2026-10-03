@@ -1,0 +1,11 @@
+cloudflared.exe
+tunnel.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+env/
+shopx_user_data.xlsx
+shopx_activity_log.csv

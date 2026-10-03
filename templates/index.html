@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShopX - Online Shopping for Electronics, Fashion, Mobiles & More</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <!-- Fallback relative stylesheet if opened directly as file:// -->
+  <link rel="stylesheet" href="static/css/style.css" />
+  <script>
+    (function() {
+      var hasCookie = document.cookie.indexOf("shopx_user_session=") !== -1;
+      var hasStorage = !!localStorage.getItem("shopx_logged_user");
+      if (!hasCookie && !hasStorage) {
+        var isFileMode = window.location.protocol === "file:" || window.location.pathname.endsWith(".html");
+        window.location.replace(isFileMode ? "login.html" : "/login");
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       TOP PRIMARY HEADER
+       ========================================================================== -->
+  <header class="main-header">
+    <div class="top-nav">
+      
+      <!-- Brand Logo -->
+      <div class="logo-container" onclick="scrollToTop()">
+        <div class="logo-brand">
+          <span class="brand-shop">Shop</span><span class="brand-x">X</span>
+        </div>
+        <div class="logo-tagline">
+          <span>Explore</span>
+          <span class="plus-badge">Plus⚡</span>
+        </div>
+      </div>
+
+      <!-- Deliver to Location -->
+      <button class="deliver-to-btn" onclick="openLocationModal()" title="Change delivery location">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <div>
+          <div class="deliver-caption">Deliver to</div>
+          <div class="deliver-location" id="headerDeliveryLocation">New Delhi 110001</div>
+        </div>
+      </button>
+
+      <!-- Search Bar -->
+      <div class="search-bar-wrapper">
+        <form class="search-form" id="searchForm">
+          <select class="search-category-select" id="searchCategorySelect">
+            <option value="All">All Categories</option>
+            <option value="Mobiles & Tablets">Mobiles</option>
+            <option value="Laptops & Computers">Laptops</option>
+            <option value="Audio & Headphones">Audio</option>
+            <option value="Smart Watches & Wearables">Wearables</option>
+            <option value="Footwear & Sneakers">Footwear</option>
+            <option value="Fashion & Apparel">Fashion</option>
+            <option value="Cameras & Photography">Cameras</option>
+            <option value="Home & Kitchen">Home</option>
+          </select>
+          <input 
+            type="text" 
+            id="searchInputField" 
+            class="search-input-field" 
+            placeholder="Search for products, brands, electronics and more..." 
+            autocomplete="off" 
+          />
+          <button type="button" id="clearSearchBtn" class="clear-search-btn" onclick="onSearchClear()">×</button>
+          <button type="submit" class="search-submit-btn" title="Search">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </form>
+
+        <!-- Live Instant Autocomplete Dropdown -->
+        <div id="searchAutocompleteDropdown" class="search-autocomplete-dropdown"></div>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="header-actions">
+        <!-- Account & Lists / Sign In -->
+        <button class="header-action-btn" id="headerAccountBtn" onclick="window.location.href='/login'" title="Sign in or view account">
+          <span class="action-subtext">Hello, sign in</span>
+          <span class="action-maintext">Account & Lists ▾</span>
+        </button>
+
+        <!-- Wishlist -->
+        <button class="header-action-btn" onclick="openWishlistModal()">
+          <span class="action-subtext">Your</span>
+          <span class="action-maintext">Wishlist ❤️</span>
+        </button>
+
+        <!-- Returns & Orders -->
+        <button class="header-action-btn" onclick="openOrdersModal()">
+          <span class="action-subtext">Returns</span>
+          <span class="action-maintext">& Orders 📦</span>
+        </button>
+
+        <!-- Cart Button -->
+        <button class="header-cart-btn" onclick="toggleCartDrawer()">
+          <div class="cart-icon-wrapper">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span class="cart-badge-count">0</span>
+          </div>
+          <span style="font-size: 14px;">Cart</span>
+        </button>
+
+        <!-- Dark / Light Theme Toggle -->
+        <button id="themeToggleBtn" class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Secondary Sub-Navbar -->
+    <div class="sub-nav">
+      <div class="sub-nav-content">
+        <div class="sub-nav-item highlight" onclick="selectCategory('All')">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+          All Categories
+        </div>
+        <div class="sub-nav-item" onclick="scrollToTop()">Today's Deals 🔥</div>
+        <div class="sub-nav-item" onclick="selectCategory('Mobiles & Tablets')">Mobiles</div>
+        <div class="sub-nav-item" onclick="selectCategory('Laptops & Computers')">Laptops & PCs</div>
+        <div class="sub-nav-item" onclick="selectCategory('Audio & Headphones')">Audio</div>
+        <div class="sub-nav-item" onclick="selectCategory('Fashion & Apparel')">Fashion</div>
+        <div class="sub-nav-item" onclick="selectCategory('Footwear & Sneakers')">Sneakers</div>
+        <div class="sub-nav-item" onclick="selectCategory('Home & Kitchen')">Home & Kitchen</div>
+        <div class="sub-nav-item" onclick="openOrdersModal()">Track Orders</div>
+        <a href="/admin" class="sub-nav-item" style="color: #4ade80; font-weight: 700; text-decoration: none;">📊 Excel Data Center</a>
+        <div class="sub-nav-item highlight" style="margin-left: auto;">ShopX Plus ⚡ Extra 10% Off</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MAIN CONTENT
+       ========================================================================== -->
+  <main class="site-main-container">
+
+    <!-- Category Visual Ribbon -->
+    <section class="category-ribbon">
+      <div class="category-scroll-list" id="categoryRibbonList">
+        <!-- Injected dynamically via JS -->
+      </div>
+    </section>
+
+    <!-- Hero Sales Carousel -->
+    <section class="hero-carousel-section">
+      <div class="carousel-slides-wrapper">
+
+        <!-- Slide 1 -->
+        <div class="carousel-slide active" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);">
+          <div class="slide-content">
+            <span class="slide-badge">Mega Electronics Fest</span>
+            <h1 class="slide-title">Next-Gen Flagships & Laptops</h1>
+            <p class="slide-subtitle">Up to 40% Off on Apple, Samsung & ASUS + No Cost EMI</p>
+            <button class="slide-cta-btn" onclick="selectCategory('Mobiles & Tablets')">
+              Shop Smartphones
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+          <div style="font-size: 130px; opacity: 0.85; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));">📱</div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="carousel-slide" style="background: linear-gradient(135deg, #831843 0%, #be185d 50%, #4c0519 100%);">
+          <div class="slide-content">
+            <span class="slide-badge">Super Sneaker Drop</span>
+            <h1 class="slide-title">Jordan & Ultraboost Classics</h1>
+            <p class="slide-subtitle">Authentic Air Jordans, Nike & Adidas with ShopX Assured Tag</p>
+            <button class="slide-cta-btn" onclick="selectCategory('Footwear & Sneakers')">
+              Explore Footwear
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+          <div style="font-size: 130px; opacity: 0.85; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));">👟</div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="carousel-slide" style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);">
+          <div class="slide-content">
+            <span class="slide-badge">Acoustic Wonderland</span>
+            <h1 class="slide-title">Sony WH-1000XM5 & AirPods Pro</h1>
+            <p class="slide-subtitle">Block the noise with industry-leading Active Noise Cancellation</p>
+            <button class="slide-cta-btn" onclick="selectCategory('Audio & Headphones')">
+              Grab Audio Deals
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+          <div style="font-size: 130px; opacity: 0.85; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));">🎧</div>
+        </div>
+
+      </div>
+
+      <!-- Navigation Arrows -->
+      <button class="carousel-nav-btn prev" onclick="prevSlide()">‹</button>
+      <button class="carousel-nav-btn next" onclick="nextSlide()">›</button>
+
+      <!-- Dots Indicators -->
+      <div class="carousel-dots" id="carouselDots"></div>
+    </section>
+
+    <!-- Lightning Deals & Deals of the Day Horizontal Strip -->
+    <section class="deals-strip-section">
+      <div class="deals-strip-header">
+        <div class="deals-header-left">
+          <h2 class="deals-section-title">
+            <span class="deals-fire-icon">⚡</span>
+            Lightning Deals of the Day
+          </h2>
+          <div class="deals-countdown-box">
+            <span>⏱ Ends in</span>
+            <span id="dealsCountdownTimer">03h : 42m : 19s</span>
+          </div>
+        </div>
+        <button class="view-all-deals-btn" onclick="selectCategory('All')">
+          View All Deals →
+        </button>
+      </div>
+
+      <!-- Deals Scroll Container -->
+      <div class="deals-horizontal-scroll" id="dealsHorizontalScroll">
+        <!-- Rendered dynamically via JS -->
+      </div>
+    </section>
+
+    <!-- Anchor for Smooth Scrolling to Catalog -->
+    <div id="productsCatalogAnchor"></div>
+
+    <!-- Catalog Layout (Filters Sidebar + Main Products Grid) -->
+    <div class="catalog-layout">
+      
+      <!-- Filters Sidebar -->
+      <aside class="filters-sidebar" id="filtersSidebar">
+        <div class="filters-header">
+          <span class="filters-title">Filters</span>
+          <button class="clear-all-filters-btn" onclick="clearAllFilters()">Clear all</button>
+        </div>
+
+        <!-- ShopX Assured Toggle -->
+        <div class="filter-group">
+          <label class="assured-toggle-card">
+            <div class="assured-badge-brand">
+              Shop<b>X</b> <span>Assured</span>
+            </div>
+            <div class="toggle-switch">
+              <input type="checkbox" id="assuredToggleCheckbox" onchange="toggleAssuredFilter()" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Categories Filter -->
+        <div class="filter-group">
+          <div class="filter-group-title">Category</div>
+          <div class="category-filter-list" id="sidebarCategoryFilterList">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Price Range Filter -->
+        <div class="filter-group">
+          <div class="filter-group-title">Price Range</div>
+          <div class="price-slider-container">
+            <input 
+              type="range" 
+              id="priceRangeSlider" 
+              class="range-slider-input" 
+              min="1000" 
+              max="250000" 
+              step="1000" 
+              value="250000" 
+              oninput="onPriceRangeChange(this.value)" 
+            />
+            <div class="price-inputs-row">
+              <div class="price-input-box">
+                <span>₹</span>
+                <input type="number" id="priceMinInput" placeholder="Min" onchange="onMinPriceInputChange(this.value)" />
+              </div>
+              <span style="color: var(--text-muted);">-</span>
+              <div class="price-input-box">
+                <span>₹</span>
+                <input type="number" id="priceMaxInput" placeholder="Max" onchange="onMaxPriceInputChange(this.value)" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Brand Filter -->
+        <div class="filter-group">
+          <div class="filter-group-title">Brands</div>
+          <div class="brands-checkbox-list" id="sidebarBrandsList">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Customer Rating Filter -->
+        <div class="filter-group">
+          <div class="filter-group-title">Customer Ratings</div>
+          <div class="rating-filters-list">
+            <div class="rating-filter-item" onclick="setRatingFilter(4)">
+              <span class="stars-gold">★★★★☆</span>
+              <span>4★ & above</span>
+            </div>
+            <div class="rating-filter-item" onclick="setRatingFilter(3)">
+              <span class="stars-gold">★★★☆☆</span>
+              <span>3★ & above</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discount Percentage Filter -->
+        <div class="filter-group">
+          <div class="filter-group-title">Discount</div>
+          <div class="category-filter-list">
+            <div class="category-filter-item" onclick="AppState.filters.minDiscount = 50; applyFiltersAndSort();">50% or more</div>
+            <div class="category-filter-item" onclick="AppState.filters.minDiscount = 30; applyFiltersAndSort();">30% or more</div>
+            <div class="category-filter-item" onclick="AppState.filters.minDiscount = 10; applyFiltersAndSort();">10% or more</div>
+          </div>
+        </div>
+
+      </aside>
+
+      <!-- Products Main Column -->
+      <section class="products-main-section">
+        
+        <!-- Controls Bar -->
+        <div class="catalog-controls-bar">
+          <div class="results-count-text" id="resultsCountDisplay">
+            Loading products...
+          </div>
+
+          <div class="catalog-sort-group">
+            <span class="sort-label">Sort By:</span>
+            <select class="sort-select" id="sortSelect" onchange="onSortChange(this.value)">
+              <option value="relevance">Relevance & Featured</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Customer Rating</option>
+              <option value="discount">Highest Discount</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+
+            <!-- View Mode Switcher -->
+            <div class="view-mode-toggle">
+              <button id="viewGridBtn" class="view-mode-btn active" title="Grid View" onclick="setViewMode('grid')">
+                <svg fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/></svg>
+              </button>
+              <button id="viewListBtn" class="view-mode-btn" title="List View" onclick="setViewMode('list')">
+                <svg fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Filter Chips -->
+        <div class="active-filters-chips-bar" id="activeFilterChipsBar"></div>
+
+        <!-- Products Grid Container -->
+        <div class="products-grid" id="productsGrid">
+          <!-- Rendered dynamically via JS -->
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ==========================================================================
+       PRODUCT QUICK VIEW / DETAILS MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="quickViewModal" onclick="if(event.target===this) closeQuickViewModal()">
+    <div class="modal-container-card">
+      <button class="modal-close-btn" onclick="closeQuickViewModal()">×</button>
+      <div id="quickViewModalContent"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       CART SLIDE-OUT DRAWER
+       ========================================================================== -->
+  <div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="if(event.target===this) toggleCartDrawer()">
+    <div class="cart-drawer">
+      <div class="cart-drawer-header">
+        <div class="cart-drawer-title">
+          <span>My Shopping Cart</span>
+          <span id="cartDrawerItemsCount" style="font-size: 14px; font-weight: 500; color: #cbd5e1;">(0 items)</span>
+        </div>
+        <button class="cart-drawer-close" onclick="toggleCartDrawer()">×</button>
+      </div>
+
+      <div class="free-delivery-meter" id="freeDeliveryMeter">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Items List -->
+      <div class="cart-items-container" id="cartItemsList"></div>
+
+      <!-- Promo Coupon Box -->
+      <div class="cart-coupon-box">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">HAVE A PROMO COUPON?</div>
+        <div class="coupon-input-group">
+          <input type="text" id="couponInputBox" class="coupon-input" placeholder="e.g. SHOPX100" />
+          <button class="coupon-apply-btn" onclick="applyCouponCode()">Apply</button>
+        </div>
+        <div class="coupon-chips-list">
+          <span class="coupon-chip-tag" onclick="applyCouponCode('SHOPX100')">🏷️ SHOPX100 (₹100 Off)</span>
+          <span class="coupon-chip-tag" onclick="applyCouponCode('FESTIVE20')">🏷️ FESTIVE20 (20% Off)</span>
+          <span class="coupon-chip-tag" onclick="applyCouponCode('WELCOME50')">🏷️ WELCOME50</span>
+        </div>
+      </div>
+
+      <!-- Bill Breakdown & Checkout CTA -->
+      <div class="cart-drawer-footer">
+        <div id="cartBillSummary" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        <button class="cart-checkout-btn" onclick="openCheckoutModal()">
+          Proceed to Checkout
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       CHECKOUT MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="checkoutModal" onclick="if(event.target===this) closeCheckoutModal()">
+    <div class="modal-container-card" style="max-width: 650px;">
+      <button class="modal-close-btn" onclick="closeCheckoutModal()">×</button>
+      
+      <!-- Stepper Indicator -->
+      <div class="checkout-steps-bar">
+        <div class="step-indicator active" id="checkoutStepInd-1">
+          <div class="step-number">1</div>
+          <span>Delivery Address</span>
+        </div>
+        <div class="step-indicator" id="checkoutStepInd-2">
+          <div class="step-number">2</div>
+          <span>Payment</span>
+        </div>
+        <div class="step-indicator" id="checkoutStepInd-3">
+          <div class="step-number">3</div>
+          <span>Review & Place</span>
+        </div>
+      </div>
+
+      <div class="checkout-modal-body" id="checkoutModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       ORDERS LIST MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="ordersModal" onclick="if(event.target===this) closeOrdersModal()">
+    <div class="modal-container-card" style="max-width: 600px; padding: 24px;">
+      <button class="modal-close-btn" onclick="closeOrdersModal()">×</button>
+      <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 16px;">Your Orders & Deliveries</h3>
+      <div id="ordersListContainer"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       LIVE ORDER TRACKING MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="trackingModal" onclick="if(event.target===this) closeTrackingModal()">
+    <div class="modal-container-card" style="max-width: 550px;">
+      <button class="modal-close-btn" onclick="closeTrackingModal()">×</button>
+      <div id="trackingModalContent"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       WISHLIST MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="wishlistModal" onclick="if(event.target===this) closeWishlistModal()">
+    <div class="modal-container-card" style="max-width: 580px; padding: 24px;">
+      <button class="modal-close-btn" onclick="closeWishlistModal()">×</button>
+      <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 16px;">Your Wishlist ❤️</h3>
+      <div id="wishlistItemsList"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       CHANGE DELIVERY LOCATION MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="locationModal" onclick="if(event.target===this) closeLocationModal()">
+    <div class="modal-container-card" style="max-width: 440px; padding: 24px;">
+      <button class="modal-close-btn" onclick="closeLocationModal()">×</button>
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Select Delivery Location</h3>
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Enter your postal pincode to see accurate delivery speed & seller availability.</p>
+      
+      <div class="form-field-group" style="margin-bottom: 12px;">
+        <label>6-Digit Pincode</label>
+        <input type="text" id="headerPincodeInput" placeholder="e.g. 110001" maxlength="6" value="110001" />
+      </div>
+
+      <div class="form-field-group" style="margin-bottom: 20px;">
+        <label>City / Area Name</label>
+        <input type="text" id="headerCityInput" placeholder="e.g. New Delhi" value="New Delhi" />
+      </div>
+
+      <button class="slide-cta-btn" style="width: 100%; justify-content: center;" onclick="saveDeliveryLocation()">
+        Apply Location
+      </button>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas for Celebratory Checkout Animation -->
+  <canvas id="confettiCanvas" style="position: fixed; inset: 0; pointer-events: none; z-index: 9999; display: none;"></canvas>
+
+  <!-- ==========================================================================
+       FOOTER
+       ========================================================================== -->
+  <div class="back-to-top-btn" onclick="scrollToTop()">
+    Back to Top ↑
+  </div>
+
+  <footer class="main-footer">
+    <div class="footer-columns-container">
+      <div>
+        <div class="footer-col-title">Get to Know Us</div>
+        <ul class="footer-links-list">
+          <li><a href="#">About ShopX</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Press Releases</a></li>
+          <li><a href="#">ShopX Science & Tech</a></li>
+          <li><a href="#">ShopX Stories</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Connect with Us</div>
+        <ul class="footer-links-list">
+          <li><a href="#">Facebook</a></li>
+          <li><a href="#">Twitter / X</a></li>
+          <li><a href="#">Instagram</a></li>
+          <li><a href="#">YouTube</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Make Money with Us</div>
+        <ul class="footer-links-list">
+          <li><a href="#">Sell on ShopX</a></li>
+          <li><a href="#">Sell under ShopX Accelerator</a></li>
+          <li><a href="#">Protect and Build Your Brand</a></li>
+          <li><a href="#">ShopX Global Selling</a></li>
+          <li><a href="#">Become an Affiliate</a></li>
+          <li><a href="#">Fulfillment by ShopX</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="footer-col-title">Let Us Help You</div>
+        <ul class="footer-links-list">
+          <li><a href="#" onclick="openOrdersModal()">Your Account & Orders</a></li>
+          <li><a href="#">Returns Centre & 100% Purchase Protection</a></li>
+          <li><a href="#">ShopX App Download</a></li>
+          <li><a href="#">Help & Customer Support 24x7</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom-bar">
+      <div class="footer-brand-wrap">
+        <div class="logo-brand" style="font-size: 22px;">
+          <span class="brand-shop">Shop</span><span class="brand-x">X</span>
+        </div>
+      </div>
+      <p style="color: #9ca3af; font-size: 11px;">
+        © 2026 ShopX.com, Inc. or its affiliates. All rights reserved. Amazon and Flipkart are trademarks of their respective owners.
+      </p>
+      <div class="payment-badges-row">
+        <span class="pay-badge-pill">🔒 100% Secure Checkout</span>
+        <span class="pay-badge-pill">RuPay</span>
+        <span class="pay-badge-pill">VISA</span>
+        <span class="pay-badge-pill">MasterCard</span>
+        <span class="pay-badge-pill">UPI</span>
+        <span class="pay-badge-pill">Net Banking</span>
+        <span class="pay-badge-pill">Cash on Delivery</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active" onclick="scrollToTop()">
+      <svg fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="selectCategory('All')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+      <span>Categories</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="openWishlistModal()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+      <span>Wishlist</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="openOrdersModal()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+      <span>Orders</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="toggleCartDrawer()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+      <span>Cart (<span class="cart-badge-count">0</span>)</span>
+    </button>
+  </nav>
+
+  <!-- Scripts -->
+  <script src="/static/js/products-data.js"></script>
+  <!-- Fallback relative script if opened directly as file:// -->
+  <script src="static/js/products-data.js"></script>
+  <script src="/static/js/app.js"></script>
+  <!-- Fallback relative script if opened directly as file:// -->
+  <script src="static/js/app.js"></script>
+</body>
+</html>
