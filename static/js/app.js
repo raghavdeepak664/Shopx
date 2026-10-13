@@ -242,6 +242,8 @@ async function fetchProductsAndCategories() {
   renderSidebarFilters();
   applyFiltersAndSort();
   renderDealsStrip();
+  renderRecommendations();
+  initShopbot();
 }
 
 function extractCategoriesAndBrands() {
@@ -1053,6 +1055,7 @@ function addToCart(productId) {
   saveCartState();
   updateProductCardAction(productId);
   renderCartDrawer();
+  renderRecommendations();
   showToast(`Added "${product.title.slice(0, 30)}..." to Cart!`, "success");
 
   // Real-time Excel Logging on host PC!
@@ -2075,4 +2078,298 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+
+/* ==========================================================================
+   SMART RECOMMENDATION ENGINE
+   ========================================================================== */
+function getSmartRecommendations(limit = 8) {
+  if (!AppState.products || AppState.products.length === 0) return [];
+  
+  // Gather categories currently in cart
+  const cartCategories = new Set(AppState.cart.map(c => {
+    const full = AppState.products.find(p => p.id === c.id);
+    return full ? full.category : null;
+  }).filter(Boolean));
+
+  const cartProductIds = new Set(AppState.cart.map(c => c.id));
+
+  // Score products based on rating, discount, bestseller, and cart synergy
+  const scored = AppState.products.map(p => {
+    let score = (p.rating || 4) * 10 + (p.discount || 0);
+    if (p.is_bestseller) score += 25;
+    if (p.is_deal) score += 20;
+    if (cartCategories.has(p.category)) score += 35;
+    if (cartProductIds.has(p.id)) score -= 100;
+    return { product: p, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map(s => s.product);
+}
+
+function renderRecommendations() {
+  const container = document.getElementById("recommendationsScrollContainer");
+  if (!container) return;
+
+  const recs = getSmartRecommendations(10);
+  if (recs.length === 0) {
+    container.innerHTML = `<p style="padding: 20px; color: var(--text-muted);">Explore products to see personalized recommendations!</p>`;
+    return;
+  }
+
+  container.innerHTML = recs.map(p => `
+    <div class="rec-card">
+      <img src="${p.image}" alt="${escapeHtml(p.title)}" class="rec-card-image" onclick="openQuickViewModal(${p.id})" loading="lazy" />
+      <div class="rec-card-category">${escapeHtml(p.category)}</div>
+      <div class="rec-card-title" onclick="openQuickViewModal(${p.id})" title="${escapeHtml(p.title)}">
+        ${escapeHtml(p.title)}
+      </div>
+      <div class="rec-card-price-row">
+        <span class="rec-card-price">₹${p.price.toLocaleString("en-IN")}</span>
+        ${p.original_price > p.price ? `<span class="rec-card-original">₹${p.original_price.toLocaleString("en-IN")}</span>` : ''}
+        ${p.discount > 0 ? `<span class="rec-card-discount">${p.discount}% off</span>` : ''}
+      </div>
+      <button class="rec-add-btn" onclick="addToCart(${p.id})">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+        Add to Cart
+      </button>
+    </div>
+  `).join("");
+}
+
+function scrollRecommendations(direction) {
+  const container = document.getElementById("recommendationsScrollContainer");
+  if (container) {
+    const scrollAmount = 350 * direction;
+    container.scrollBy({ left: scrollAmount, behavior: "smooth" });
+  }
+}
+
+/* ==========================================================================
+   SHOPBOT AI SHOPPING ASSISTANT & CHATBOT
+   ========================================================================== */
+let shopbotInitialized = false;
+
+function initShopbot() {
+  if (shopbotInitialized) return;
+  shopbotInitialized = true;
+
+  const msgContainer = document.getElementById("shopbotMessagesContainer");
+  if (!msgContainer) return;
+
+  // Add initial friendly greeting
+  const greeting = `
+    Hi there! 👋 I'm <b>ShopBot</b>, your personal ShopX AI Shopping Assistant.<br/><br/>
+    I can help you:
+    <ul style="margin: 6px 0 0 16px; padding: 0;">
+      <li>🔍 Find products within your budget</li>
+      <li>🔥 Discover today's top deals</li>
+      <li>📦 Track active orders</li>
+      <li>🎟️ Apply promo coupon codes</li>
+    </ul>
+    <br/>What are you looking for today?
+  `;
+  appendShopbotMessage(greeting, "bot");
+}
+
+function toggleShopbot() {
+  const win = document.getElementById("shopbotWindow");
+  if (!win) return;
+  const isActive = win.classList.contains("active");
+  if (isActive) {
+    win.classList.remove("active");
+  } else {
+    win.classList.add("active");
+    if (!shopbotInitialized) initShopbot();
+    setTimeout(() => {
+      const input = document.getElementById("shopbotInput");
+      if (input) input.focus();
+    }, 150);
+  }
+}
+
+function appendShopbotMessage(htmlContent, sender = "bot") {
+  const container = document.getElementById("shopbotMessagesContainer");
+  if (!container) return;
+
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble ${sender}`;
+  bubble.innerHTML = htmlContent;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+function handleShopbotChip(chipText) {
+  const input = document.getElementById("shopbotInput");
+  if (input) {
+    input.value = chipText;
+    processShopbotQuery(chipText);
+    input.value = "";
+  }
+}
+
+function handleShopbotSubmit(event) {
+  if (event) event.preventDefault();
+  const input = document.getElementById("shopbotInput");
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  processShopbotQuery(text);
+  input.value = "";
+}
+
+function clearShopbotChat() {
+  const container = document.getElementById("shopbotMessagesContainer");
+  if (container) container.innerHTML = "";
+  shopbotInitialized = false;
+  initShopbot();
+}
+
+function processShopbotQuery(userText) {
+  appendShopbotMessage(escapeHtml(userText), "user");
+
+  // Show typing indicator
+  const typingId = "shopbotTypingIndicator";
+  appendShopbotMessage(`<span id="${typingId}" style="color: var(--text-muted); font-style: italic;">ShopBot is thinking...</span>`, "bot");
+
+  setTimeout(() => {
+    const typingElem = document.getElementById(typingId);
+    if (typingElem && typingElem.closest(".chat-bubble")) {
+      typingElem.closest(".chat-bubble").remove();
+    }
+
+    const responseHtml = generateShopbotResponse(userText);
+    appendShopbotMessage(responseHtml, "bot");
+  }, 400);
+}
+
+function generateShopbotResponse(query) {
+  const q = query.toLowerCase();
+
+  // 1. Coupon queries
+  if (q.includes("coupon") || q.includes("promo") || q.includes("discount code") || q.includes("offer")) {
+    return `
+      Here are the active promo coupons you can apply at checkout:<br/><br/>
+      🎟️ <b>SHOPX100</b> — Flat ₹100 OFF on orders above ₹500<br/>
+      🎟️ <b>FESTIVE20</b> — 20% OFF (up to ₹1,000) on orders above ₹1,500<br/>
+      🎟️ <b>WELCOME50</b> — Flat ₹50 OFF on your first purchase<br/>
+      🎟️ <b>PRIMEPLUS</b> — 10% OFF for ShopX Plus members<br/><br/>
+      <i>Just enter the code in your cart drawer to save instantly!</i>
+    `;
+  }
+
+  // 2. Order Tracking
+  if (q.includes("track") || q.includes("order") || q.includes("delivery") || q.includes("shipping")) {
+    if (AppState.orders && AppState.orders.length > 0) {
+      const latest = AppState.orders[0];
+      return `
+        📦 Found your latest order: <b>${latest.order_id}</b><br/>
+        Status: <b style="color: #16a34a;">${latest.status || "Order Confirmed"}</b><br/>
+        Expected Delivery: <b>${latest.expected_delivery || "Tomorrow by 11:00 AM"}</b><br/>
+        Total Amount: <b>₹${(latest.total || 0).toLocaleString("en-IN")}</b><br/><br/>
+        <button class="chat-add-btn" onclick="openOrderTrackingModal('${latest.order_id}')" style="width: 100%;">
+          📍 View Full Live Tracking Timeline
+        </button>
+      `;
+    } else {
+      return `
+        📦 You don't have any placed orders yet.<br/>
+        Once you place an order, you can track it live right here or via the <b>Track Orders</b> menu in the top bar!
+      `;
+    }
+  }
+
+  // 3. Return / Refund Policy
+  if (q.includes("return") || q.includes("refund") || q.includes("exchange") || q.includes("replacement")) {
+    return `
+      🛡️ <b>ShopX 7-Day Hassle-Free Returns:</b><br/>
+      All electronics, smartphones, and fashion items come with a 7-day doorstep replacement or full refund policy.<br/><br/>
+      Simply keep the original box and invoice ready.
+    `;
+  }
+
+  // 4. Greetings
+  if (q === "hi" || q === "hello" || q === "hey" || q.includes("how are you")) {
+    return `
+      Hello! 😊 How can I help you find what you need today? You can ask me for phones under a budget, best laptops, wireless headphones, or trending sneakers!
+    `;
+  }
+
+  // 5. Budget / Price queries
+  let maxBudget = null;
+  const budgetMatch = q.match(/(?:under|below|less than|within|upto|budget)\s*(?:₹|rs\.?|inr)?\s*(\d+)(?:\s*(?:k|thousand|lakh|lac))?/i);
+  if (budgetMatch) {
+    let num = parseInt(budgetMatch[1], 10);
+    const unit = (budgetMatch[0] || "").toLowerCase();
+    if (unit.includes("k") || unit.includes("thousand")) num *= 1000;
+    else if (unit.includes("lakh") || unit.includes("lac")) num *= 100000;
+    else if (num < 1000) num *= 1000;
+    maxBudget = num;
+  }
+
+  // 6. Product Searches & Recommendations
+  let matched = AppState.products.filter(p => {
+    const text = `${p.title} ${p.brand} ${p.category} ${(p.tags || []).join(" ")}`.toLowerCase();
+    
+    // Check budget condition
+    if (maxBudget && p.price > maxBudget) return false;
+
+    // Check keyword matching
+    if (q.includes("phone") || q.includes("mobile")) return p.category === "Mobiles & Tablets";
+    if (q.includes("laptop") || q.includes("macbook") || q.includes("pc") || q.includes("computer")) return p.category === "Laptops & Computers";
+    if (q.includes("earbuds") || q.includes("headphone") || q.includes("audio") || q.includes("speaker") || q.includes("anc") || q.includes("noise cancell")) return p.category === "Audio & Headphones";
+    if (q.includes("watch") || q.includes("smartwatch") || q.includes("fitness")) return p.category === "Smart Watches & Wearables";
+    if (q.includes("shoe") || q.includes("sneaker") || q.includes("jordan") || q.includes("running")) return p.category === "Footwear & Sneakers";
+    if (q.includes("camera") || q.includes("photo") || q.includes("vlog")) return p.category === "Cameras & Photography";
+    if (q.includes("home") || q.includes("kitchen") || q.includes("vacuum") || q.includes("airfryer")) return p.category === "Home & Kitchen";
+    if (q.includes("deal") || q.includes("best deal") || q.includes("offer")) return p.is_deal;
+    if (q.includes("bestseller") || q.includes("popular") || q.includes("top")) return p.is_bestseller;
+
+    // Direct brand matching
+    if (p.brand && q.includes(p.brand.toLowerCase())) return true;
+
+    // Word intersection
+    const words = q.split(/\s+/).filter(w => w.length > 2);
+    return words.some(w => text.includes(w));
+  });
+
+  if (matched.length === 0) {
+    matched = AppState.products.filter(p => p.is_deal || p.is_bestseller).slice(0, 3);
+    return `
+      I couldn't find an exact match for <i>"${escapeHtml(query)}"</i>, but here are our highest-rated recommendations right now:<br/>
+      ${renderChatProductCards(matched)}
+    `;
+  }
+
+  matched.sort((a, b) => b.rating - a.rating);
+  const topResults = matched.slice(0, 3);
+
+  const budgetText = maxBudget ? ` under ₹${maxBudget.toLocaleString("en-IN")}` : "";
+  return `
+    ✨ Found <b>${matched.length}</b> great options${budgetText}! Here are the top picks for you:
+    ${renderChatProductCards(topResults)}
+  `;
+}
+
+function renderChatProductCards(products) {
+  return products.map(p => `
+    <div class="chat-product-card">
+      <img src="${p.image}" alt="${escapeHtml(p.title)}" class="chat-product-img" onclick="openQuickViewModal(${p.id})" />
+      <div class="chat-product-info">
+        <div class="chat-product-title" onclick="openQuickViewModal(${p.id})" title="${escapeHtml(p.title)}">${escapeHtml(p.title)}</div>
+        <div class="chat-product-price">
+          ₹${p.price.toLocaleString("en-IN")}
+          ${p.discount > 0 ? `<span style="color: #16a34a; font-size: 11px; font-weight: 700; margin-left: 4px;">(${p.discount}% OFF)</span>` : ''}
+        </div>
+        <div style="font-size: 10px; color: var(--text-muted);">⭐ ${p.rating} (${p.reviews_count || 500}+ reviews)</div>
+      </div>
+      <div class="chat-product-actions">
+        <button class="chat-add-btn" onclick="addToCart(${p.id})">+ Cart</button>
+        <button class="chat-view-btn" onclick="openQuickViewModal(${p.id})">Details</button>
+      </div>
+    </div>
+  `).join("");
 }

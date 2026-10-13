@@ -378,6 +378,26 @@
 
     </div>
 
+    <!-- ==========================================================================
+         SMART RECOMMENDATIONS SECTION
+         ========================================================================== -->
+    <section class="recommendations-section" id="recommendationsSection">
+      <div class="recommendations-header">
+        <div>
+          <div class="recommendations-badge">✨ AI Personalized Picks</div>
+          <h2 class="recommendations-title">Recommended For You</h2>
+          <p class="recommendations-subtitle">Top curated deals based on your browsing interests and popular trends</p>
+        </div>
+        <div class="recommendations-nav-arrows">
+          <button class="rec-arrow-btn" onclick="scrollRecommendations(-1)" title="Scroll Left">‹</button>
+          <button class="rec-arrow-btn" onclick="scrollRecommendations(1)" title="Scroll Right">›</button>
+        </div>
+      </div>
+      <div class="recommendations-scroll-container" id="recommendationsScrollContainer">
+        <!-- Rendered dynamically via JS -->
+      </div>
+    </section>
+
   </main>
 
   <!-- ==========================================================================
@@ -619,6 +639,64 @@
       <span>Cart (<span class="cart-badge-count">0</span>)</span>
     </button>
   </nav>
+
+  <!-- ==========================================================================
+       SHOPBOT AI CHATBOT WIDGET
+       ========================================================================== -->
+  <div class="shopbot-widget-container" id="shopbotWidgetContainer">
+    <!-- Chatbot Window -->
+    <div class="shopbot-window" id="shopbotWindow">
+      <div class="shopbot-header">
+        <div class="shopbot-header-left">
+          <div class="shopbot-avatar">🤖</div>
+          <div>
+            <div class="shopbot-name">ShopBot <span class="shopbot-ai-badge">AI Assistant</span></div>
+            <div class="shopbot-status"><span class="status-dot"></span> Online • Instant Answers</div>
+          </div>
+        </div>
+        <div class="shopbot-header-actions">
+          <button class="shopbot-btn-icon" onclick="clearShopbotChat()" title="Clear Chat">🗑️</button>
+          <button class="shopbot-btn-icon" onclick="toggleShopbot()" title="Close">✕</button>
+        </div>
+      </div>
+
+      <!-- Quick Suggestion Chips -->
+      <div class="shopbot-chips-container" id="shopbotChipsContainer">
+        <button class="shopbot-chip" onclick="handleShopbotChip('🔥 Top Deals')">🔥 Top Deals</button>
+        <button class="shopbot-chip" onclick="handleShopbotChip('📱 Phones under ₹70,000')">📱 Phones under ₹70k</button>
+        <button class="shopbot-chip" onclick="handleShopbotChip('💻 Best Laptops')">💻 Best Laptops</button>
+        <button class="shopbot-chip" onclick="handleShopbotChip('🎧 Noise Cancelling')">🎧 Noise Cancelling</button>
+        <button class="shopbot-chip" onclick="handleShopbotChip('📦 Track My Order')">📦 Track Order</button>
+        <button class="shopbot-chip" onclick="handleShopbotChip('🎟️ Discount Coupons')">🎟️ Coupons</button>
+      </div>
+
+      <!-- Messages Stream -->
+      <div class="shopbot-messages-container" id="shopbotMessagesContainer">
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Input Form -->
+      <form class="shopbot-input-area" id="shopbotInputForm" onsubmit="handleShopbotSubmit(event)">
+        <input 
+          type="text" 
+          id="shopbotInput" 
+          class="shopbot-input" 
+          placeholder="Ask ShopBot anything (e.g. 'best phone', 'laptop under 1L')..." 
+          autocomplete="off" 
+        />
+        <button type="submit" class="shopbot-send-btn" id="shopbotSendBtn" title="Send">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+      </form>
+    </div>
+
+    <!-- Floating Toggle Button -->
+    <button class="shopbot-toggle-btn" id="shopbotToggleBtn" onclick="toggleShopbot()" title="Chat with ShopX AI Assistant">
+      <div class="shopbot-toggle-icon">💬</div>
+      <span class="shopbot-toggle-label">Ask ShopBot</span>
+      <span class="shopbot-online-badge"></span>
+    </button>
+  </div>
 
   <!-- Scripts -->
   <script src="/static/js/products-data.js"></script>
