@@ -639,5 +639,540 @@ DEFAULT_PRODUCTS = [
     "fast_delivery": True,
     "deal_claimed_percent": 50,
     "tags": ["canon", "vlogging", "camera", "mirrorless"]
-  }
+  },
+  {
+    "id": 25,
+    "title": "OnePlus 12 5G (Flowy Emerald, 16GB RAM, 512GB Storage)",
+    "brand": "OnePlus",
+    "category": "Mobiles & Tablets",
+    "price": 64999,
+    "original_price": 69999,
+    "discount": 7,
+    "rating": 4.7,
+    "reviews_count": 1820,
+    "image": "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Flagship Snapdragon 8 Gen 3 with 4th Gen Hasselblad Camera system, 2K 120Hz ProXDR Display, and 100W SUPERVOOC charging.",
+    "specs": {
+        "Display": "6.82-inch 2K 120Hz ProXDR AMOLED",
+        "Processor": "Snapdragon 8 Gen 3",
+        "Battery": "5400 mAh with 100W Charging",
+        "Camera": "50MP Sony LYT-808 + 64MP 3x Periscope"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 84,
+    "tags": [
+        "oneplus",
+        "5g",
+        "flagship",
+        "hasselblad"
+    ]
+},
+  {
+    "id": 26,
+    "title": "Apple iPad Air 11-inch (M2 chip, 128GB, Wi-Fi, Space Gray)",
+    "brand": "Apple",
+    "category": "Mobiles & Tablets",
+    "price": 59900,
+    "original_price": 64900,
+    "discount": 8,
+    "rating": 4.8,
+    "reviews_count": 2150,
+    "image": "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Supercharged by the Apple M2 chip. Gorgeous Liquid Retina display, landscape front camera, and blazing-fast Wi-Fi 6E.",
+    "specs": {
+        "Chip": "Apple M2 with 8-core CPU and 9-core GPU",
+        "Display": "11-inch Liquid Retina with True Tone",
+        "Storage": "128 GB",
+        "Support": "Apple Pencil Pro and Magic Keyboard"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": False,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 65,
+    "tags": [
+        "apple",
+        "ipad",
+        "tablet",
+        "m2"
+    ]
+},
+  {
+    "id": 27,
+    "title": "Google Pixel 8 Pro (Bay Blue, 128GB Storage, 12GB RAM)",
+    "brand": "Google",
+    "category": "Mobiles & Tablets",
+    "price": 79999,
+    "original_price": 106999,
+    "discount": 25,
+    "rating": 4.6,
+    "reviews_count": 1420,
+    "image": "https://images.unsplash.com/photo-1598327105854-c8674faddf79?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1598327105854-c8674faddf79?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Engineered with Google Tensor G3 and Google AI. Best-in-class camera system with Magic Editor and Audio Magic Eraser.",
+    "specs": {
+        "Display": "6.7-inch Super Actua OLED 120Hz",
+        "Processor": "Google Tensor G3",
+        "Camera": "50MP Wide + 48MP Ultrawide + 48MP Telephoto"
+    },
+    "in_stock": True,
+    "is_bestseller": False,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 91,
+    "tags": [
+        "google",
+        "pixel",
+        "camera",
+        "ai"
+    ]
+},
+  {
+    "id": 28,
+    "title": "Apple MacBook Air 13-inch (M3 chip, 8-core CPU, 256GB SSD, Midnight)",
+    "brand": "Apple",
+    "category": "Laptops & Computers",
+    "price": 104900,
+    "original_price": 114900,
+    "discount": 9,
+    "rating": 4.9,
+    "reviews_count": 4120,
+    "image": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Lean, mean, M3 machine. Built for Apple Intelligence with up to 18 hours of battery life and a striking ultra-thin design.",
+    "specs": {
+        "Chip": "Apple M3 Chip",
+        "RAM": "8GB Unified Memory",
+        "Storage": "256GB SSD",
+        "Display": "13.6-inch Liquid Retina Display"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 88,
+    "tags": [
+        "apple",
+        "macbook",
+        "m3",
+        "laptop"
+    ]
+},
+  {
+    "id": 29,
+    "title": "ASUS ROG Zephyrus G16 (Intel Core Ultra 9, RTX 4070 8GB, 32GB RAM, 1TB SSD)",
+    "brand": "ASUS",
+    "category": "Laptops & Computers",
+    "price": 189990,
+    "original_price": 219990,
+    "discount": 14,
+    "rating": 4.8,
+    "reviews_count": 940,
+    "image": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Precision-crafted CNC aluminum chassis with ROG Nebula 2.5K OLED 240Hz display. Extreme performance in an ultra-slim body.",
+    "specs": {
+        "Processor": "Intel Core Ultra 9 185H",
+        "Graphics": "NVIDIA GeForce RTX 4070",
+        "Display": "16-inch 2.5K 240Hz OLED",
+        "RAM": "32GB LPDDR5X"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": False,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 58,
+    "tags": [
+        "asus",
+        "rog",
+        "gaming",
+        "rtx4070"
+    ]
+},
+  {
+    "id": 30,
+    "title": "Dell XPS 13 Plus (Intel Core i7-1360P, 16GB RAM, 512GB SSD, UHD+ Touch)",
+    "brand": "Dell",
+    "category": "Laptops & Computers",
+    "price": 139990,
+    "original_price": 159990,
+    "discount": 13,
+    "rating": 4.7,
+    "reviews_count": 820,
+    "image": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Futuristic zero-lattice keyboard, capacitive touch function row, and seamless glass touchpad with edge-to-edge InfinityEdge display.",
+    "specs": {
+        "Processor": "13th Gen Intel Core i7-1360P",
+        "Display": "13.4-inch 3.5K OLED Touch",
+        "Weight": "1.23 kg",
+        "Ports": "Dual Thunderbolt 4"
+    },
+    "in_stock": True,
+    "is_bestseller": False,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 72,
+    "tags": [
+        "dell",
+        "xps",
+        "ultrabook",
+        "touch"
+    ]
+},
+  {
+    "id": 31,
+    "title": "Apple AirPods Pro (2nd Gen) with MagSafe Case (USB-C)",
+    "brand": "Apple",
+    "category": "Audio & Headphones",
+    "price": 21990,
+    "original_price": 24900,
+    "discount": 12,
+    "rating": 4.8,
+    "reviews_count": 9800,
+    "image": "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Up to 2x more Active Noise Cancellation than the previous generation. Transparency mode, Personalized Spatial Audio, and USB-C case.",
+    "specs": {
+        "Chip": "Apple H2 Headphone Chip",
+        "Battery": "Up to 6 hours with ANC on (30 hours with case)",
+        "Resistance": "IP54 dust, sweat, and water resistant"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 95,
+    "tags": [
+        "apple",
+        "airpods",
+        "anc",
+        "wireless"
+    ]
+},
+  {
+    "id": 32,
+    "title": "Bose QuietComfort Ultra Wireless Noise Cancelling Headphones (Black)",
+    "brand": "Bose",
+    "category": "Audio & Headphones",
+    "price": 34900,
+    "original_price": 39900,
+    "discount": 13,
+    "rating": 4.7,
+    "reviews_count": 1450,
+    "image": "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "World-class active noise cancellation with breakthrough Bose Immersive Audio for spatial sound and luxurious comfortable earcups.",
+    "specs": {
+        "Audio": "CustomTune Technology & Immersive Audio",
+        "Battery": "Up to 24 hours playback",
+        "Microphones": "Advanced noise-rejecting mic system"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": False,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 60,
+    "tags": [
+        "bose",
+        "headphones",
+        "anc",
+        "premium"
+    ]
+},
+  {
+    "id": 33,
+    "title": "JBL Flip 6 Portable Waterproof Bluetooth Speaker (Squad Black)",
+    "brand": "JBL",
+    "category": "Audio & Headphones",
+    "price": 9999,
+    "original_price": 13999,
+    "discount": 29,
+    "rating": 4.6,
+    "reviews_count": 7200,
+    "image": "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Bold, powerful JBL Original Pro Sound with 2-way speaker system. IP67 waterproof and dustproof design with 12 hours playtime.",
+    "specs": {
+        "Output": "30W RMS Power",
+        "Water Resistance": "IP67 Waterproof & Dustproof",
+        "Battery": "Up to 12 Hours Playtime",
+        "PartyBoost": "Connect multiple speakers"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 82,
+    "tags": [
+        "jbl",
+        "speaker",
+        "bluetooth",
+        "waterproof"
+    ]
+},
+  {
+    "id": 34,
+    "title": "Apple Watch Series 9 (GPS 45mm, Midnight Aluminum with Sport Band)",
+    "brand": "Apple",
+    "category": "Smart Watches & Wearables",
+    "price": 38990,
+    "original_price": 44900,
+    "discount": 13,
+    "rating": 4.8,
+    "reviews_count": 3200,
+    "image": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Powered by the S9 SiP with Double Tap gesture, brighter edge-to-edge display, On-Device Siri, and ECG / Blood Oxygen sensors.",
+    "specs": {
+        "Display": "Always-On Retina up to 2000 nits",
+        "Chip": "S9 SiP with 4-core Neural Engine",
+        "Battery": "18 hours standard / 36 hours low power"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 89,
+    "tags": [
+        "apple",
+        "smartwatch",
+        "fitness",
+        "series9"
+    ]
+},
+  {
+    "id": 35,
+    "title": "Samsung Galaxy Watch 6 Classic (47mm, Bluetooth, Rotating Bezel, Black)",
+    "brand": "Samsung",
+    "category": "Smart Watches & Wearables",
+    "price": 27999,
+    "original_price": 36999,
+    "discount": 24,
+    "rating": 4.6,
+    "reviews_count": 1980,
+    "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "The iconic rotating physical bezel is back. Sapphire crystal glass, advanced sleep coaching, body composition BIA sensor, and Wear OS.",
+    "specs": {
+        "Display": "1.5-inch Super AMOLED Sapphire Crystal",
+        "Bezel": "Physical Rotating Bezel",
+        "Health": "BIA, ECG, Heart Rate, SpO2, Skin Temp"
+    },
+    "in_stock": True,
+    "is_bestseller": False,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 74,
+    "tags": [
+        "samsung",
+        "smartwatch",
+        "wearos",
+        "classic"
+    ]
+},
+  {
+    "id": 36,
+    "title": "Dyson V12 Detect Slim Total Clean Cordless Vacuum Cleaner",
+    "brand": "Dyson",
+    "category": "Home & Kitchen",
+    "price": 47900,
+    "original_price": 55900,
+    "discount": 14,
+    "rating": 4.7,
+    "reviews_count": 1650,
+    "image": "https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Lightweight cordless vacuum with laser illumination reveals invisible dust on hard floors. Piezo sensor measures and counts dust particles.",
+    "specs": {
+        "Suction": "150 AW powerful suction",
+        "Weight": "2.2 kg ultra-lightweight",
+        "Run Time": "Up to 60 minutes",
+        "Filtration": "99.99% whole-machine HEPA"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": False,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 68,
+    "tags": [
+        "dyson",
+        "vacuum",
+        "home",
+        "cleaner"
+    ]
+},
+  {
+    "id": 37,
+    "title": "Philips Air Fryer XXL Connected (7.2L Capacity, Rapid Air Technology)",
+    "brand": "Philips",
+    "category": "Home & Kitchen",
+    "price": 14999,
+    "original_price": 19995,
+    "discount": 25,
+    "rating": 4.6,
+    "reviews_count": 5400,
+    "image": "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1585515320310-259814833e62?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Healthy frying with up to 90% less fat. 7.2L pan fits a whole chicken. Connects with NutriU app for hundreds of recipes and remote monitoring.",
+    "specs": {
+        "Capacity": "7.2 Liters / 1.4 kg basket",
+        "Power": "2000W Rapid Air Technology",
+        "Presets": "16-in-1 cooking functions with digital touch"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 86,
+    "tags": [
+        "philips",
+        "airfryer",
+        "kitchen",
+        "healthy"
+    ]
+},
+  {
+    "id": 38,
+    "title": "Nike Air Jordan 1 Retro High OG (Chicago Lost & Found)",
+    "brand": "Nike",
+    "category": "Footwear & Sneakers",
+    "price": 16995,
+    "original_price": 18995,
+    "discount": 11,
+    "rating": 4.9,
+    "reviews_count": 3800,
+    "image": "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "The iconic 1985 silhouette with vintage aesthetic and cracked leather accents. Authentic Air-Sole unit provides lightweight cushioning.",
+    "specs": {
+        "Upper": "Premium full-grain leather with cracked finish",
+        "Sole": "Solid rubber outsole with deep flex grooves",
+        "Colorway": "Varsity Red / Black / Sail"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 96,
+    "tags": [
+        "nike",
+        "jordan",
+        "sneakers",
+        "hype"
+    ]
+},
+  {
+    "id": 39,
+    "title": "Adidas Originals Ultraboost Light Running Shoes (Core Black)",
+    "brand": "Adidas",
+    "category": "Footwear & Sneakers",
+    "price": 13999,
+    "original_price": 18999,
+    "discount": 26,
+    "rating": 4.7,
+    "reviews_count": 4200,
+    "image": "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Experience epic energy with the Light BOOST midsole \u2014 30% lighter than standard BOOST. Primeknit+ upper ensures a snug, sock-like fit.",
+    "specs": {
+        "Midsole": "Light BOOST with Linear Energy Push",
+        "Upper": "Primeknit+ textile upper",
+        "Outsole": "Continental Better Rubber"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": True,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 79,
+    "tags": [
+        "adidas",
+        "ultraboost",
+        "running",
+        "shoes"
+    ]
+},
+  {
+    "id": 40,
+    "title": "Sony Alpha 7 IV Full-frame Mirrorless Camera (Body Only, 33MP)",
+    "brand": "Sony",
+    "category": "Cameras & Photography",
+    "price": 209990,
+    "original_price": 242990,
+    "discount": 14,
+    "rating": 4.9,
+    "reviews_count": 1120,
+    "image": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+    "additional_images": [
+        "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80"
+    ],
+    "description": "Next-generation hybrid full-frame camera. 33MP Exmor R CMOS sensor, 4K 60p video, real-time Eye AF for human, animal, and bird.",
+    "specs": {
+        "Sensor": "33.0 Megapixel Full-Frame BSI CMOS",
+        "Video": "4K 60p 10-bit 4:2:2 recording",
+        "Autofocus": "759 phase-detection AF points with AI tracking"
+    },
+    "in_stock": True,
+    "is_bestseller": True,
+    "is_deal": False,
+    "is_assured": True,
+    "fast_delivery": True,
+    "deal_claimed_percent": 65,
+    "tags": [
+        "sony",
+        "alpha",
+        "mirrorless",
+        "camera"
+    ]
+},
 ]
