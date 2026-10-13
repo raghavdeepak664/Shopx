@@ -21,6 +21,35 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_FILE = os.path.join(BASE_DIR, "shopx_user_data.xlsx")
 CSV_FILE = os.path.join(BASE_DIR, "shopx_activity_log.csv")
 
+# Google Sheets Live Webhook Integration
+GOOGLE_SHEETS_WEBHOOK_URL = os.environ.get(
+    "GOOGLE_SHEETS_WEBHOOK_URL",
+    "https://script.google.com/macros/s/AKfycbw6ObP-H0k65oxelCijRkuoU96bCSVYZZQo70oqhAGXSaXIDJccHMs24rEo2vaNDfBoyw/exec"
+)
+
+def send_to_google_sheets_async(row_data):
+    """Send row to Google Sheets via webhook asynchronously in background thread."""
+    if not GOOGLE_SHEETS_WEBHOOK_URL:
+        return
+
+    def _worker():
+        try:
+            import urllib.request
+            import json
+            payload = json.dumps({"row": row_data}).encode("utf-8")
+            req = urllib.request.Request(
+                GOOGLE_SHEETS_WEBHOOK_URL,
+                data=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                pass
+        except Exception as e:
+            print("Google Sheets sync note:", e)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+
 _lock = threading.Lock()
 
 # Define headers for each sheet
@@ -139,6 +168,9 @@ def log_event(event_type, customer_name, email_phone, details, amount=0, ip_addr
             wb.save(EXCEL_FILE)
         except Exception as e:
             print("Error writing to Excel:", e)
+
+    # Real-time Cloud Sync to Google Sheets
+    send_to_google_sheets_async(row_data)
 
 def log_login_or_signup(action_type, name, email_phone, status="SUCCESS", ip_address="127.0.0.1", user_agent=""):
     """Specific logger for Logins & Signups sheet."""
