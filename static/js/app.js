@@ -139,8 +139,6 @@ function toggleAccountMenu(event) {
     <div style="padding: 6px 0;">
       <a href="#" onclick="openOrdersModal(); closeAccountMenu(); return false;" class="menu-item-link">📦 Your Orders</a>
       <a href="#" onclick="openWishlistModal(); closeAccountMenu(); return false;" class="menu-item-link">❤️ Your Wishlist</a>
-      <a href="/admin" class="menu-item-link" style="color: #16a34a; font-weight: 700;">📊 View Excel Data Center</a>
-      <a href="/admin/export-excel" class="menu-item-link" style="font-size: 12px;">📥 Download Excel Sheet (.xlsx)</a>
       <div style="border-top: 1px solid var(--border-subtle); margin: 6px 0;"></div>
       <a href="#" onclick="signOutUser(); return false;" class="menu-item-link" style="color: #dc2626;">Sign Out</a>
     </div>

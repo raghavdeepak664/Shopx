@@ -186,21 +186,29 @@ def api_track_cart():
     database.track_cart_action(customer_name, product_id, title, brand, quantity, price, action, ip_addr)
     return jsonify({"success": True, "message": "Cart activity logged to Excel"})
 
-# Admin / Direct File Downloads & Data Viewer
+# Protected Admin / Direct File Downloads
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "shopx_secure_admin_2026")
+
 @app.route("/admin/export-excel")
 def export_excel():
+    if request.args.get("key") != ADMIN_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
     import excel_logger
     from flask import send_file
     return send_file(excel_logger.EXCEL_FILE, as_attachment=True, download_name="shopx_user_data.xlsx")
 
 @app.route("/admin/export-csv")
 def export_csv():
+    if request.args.get("key") != ADMIN_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
     import excel_logger
     from flask import send_file
     return send_file(excel_logger.CSV_FILE, as_attachment=True, download_name="shopx_activity_log.csv")
 
 @app.route("/admin")
 def admin_page():
+    if request.args.get("key") != ADMIN_KEY:
+        return jsonify({"error": "Unauthorized"}), 403
     return render_template("admin.html")
 
 if __name__ == "__main__":
