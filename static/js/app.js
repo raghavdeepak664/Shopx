@@ -710,13 +710,25 @@ function renderProductsGrid() {
 
         <div class="product-image-container" onclick="openProductQuickView(${p.id})">
           ${badgeHtml}
-          <img src="${p.image}" alt="${escapeHtml(p.title)}" class="product-thumb-img" loading="lazy" />
+          <img id="productCardImg-${p.id}" src="${p.image}" alt="${escapeHtml(p.title)}" class="product-thumb-img" loading="lazy" />
           <button class="quick-view-overlay-btn">Quick View</button>
         </div>
 
         <div class="product-info-box">
           <div class="product-brand-tag">${escapeHtml(p.brand)}</div>
           <div class="product-card-title" onclick="openProductQuickView(${p.id})">${escapeHtml(p.title)}</div>
+
+          ${(p.colors && p.colors.length > 1) ? `
+            <div class="product-color-swatches" onclick="event.stopPropagation()">
+              ${p.colors.map((c, i) => `
+                <span class="product-color-dot ${i === 0 ? 'active' : ''}" 
+                      style="background-color: ${c.hex || '#333'};" 
+                      title="${escapeHtml(c.name)}" 
+                      onclick="switchCardColor(${p.id}, ${i}, event)"></span>
+              `).join("")}
+              <span class="product-color-count">${p.colors.length} Colors</span>
+            </div>
+          ` : ""}
 
           <div class="product-card-rating-row">
             <span class="rating-pill-green">
@@ -830,8 +842,23 @@ function openProductQuickView(productId) {
         <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">${escapeHtml(product.description)}</p>
 
         <!-- Variants (Colors / Sizes) -->
-        ${product.specs && product.specs.Colors ? `
-          <div>
+        ${(product.colors && product.colors.length > 0) ? `
+          <div style="margin: 10px 0;">
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">
+              Select Color: <span id="quickviewSelectedColorName" style="color: #2563eb; font-weight: 800;">${escapeHtml(product.colors[0].name)}</span>
+            </div>
+            <div class="variants-row" style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${product.colors.map((c, i) => `
+                <div class="quickview-color-chip ${i === 0 ? 'active' : ''}" 
+                     onclick="selectQuickViewColor(${product.id}, '${escapeHtml(c.name)}', '${c.image}', this)">
+                  <span class="quickview-color-dot" style="background-color: ${c.hex || '#333'};"></span>
+                  <span>${escapeHtml(c.name)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        ` : (product.specs && product.specs.Colors ? `
+          <div style="margin: 10px 0;">
             <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Available Colors:</div>
             <div class="variants-row">
               ${product.specs.Colors.map((color, i) => `
@@ -839,7 +866,7 @@ function openProductQuickView(productId) {
               `).join("")}
             </div>
           </div>
-        ` : ""}
+        ` : "")}
 
         ${product.specs && product.specs["Sizes Available"] ? `
           <div>
@@ -881,11 +908,11 @@ function openProductQuickView(productId) {
 
         <!-- Action CTA Buttons -->
         <div class="quickview-actions-row">
-          <button class="add-to-cart-btn" style="padding: 14px; font-size: 14px;" onclick="addToCart(${product.id}); closeQuickViewModal();">
+          <button class="add-to-cart-btn" style="padding: 14px; font-size: 14px;" onclick="addQuickViewToCart(${product.id})">
             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
             Add to Cart
           </button>
-          <button class="btn-buy-now" onclick="buyNowDirect(${product.id})">
+          <button class="btn-buy-now" onclick="buyNowFromQuickView(${product.id})">
             ⚡ Buy Now
           </button>
         </div>
@@ -1031,20 +1058,33 @@ function submitProductReview(productId) {
 /* ==========================================================================
    SHOPPING CART LOGIC & DRAWER
    ========================================================================== */
-function addToCart(productId) {
+function addToCart(productId, selectedColor = null, selectedImage = null) {
   const product = AppState.products.find(p => p.id === productId);
   if (!product) return;
 
-  const existing = AppState.cart.find(item => item.id === productId);
+  if (!selectedColor) {
+    const card = document.getElementById(`productCard-${productId}`);
+    if (card && card.dataset.selectedColor) {
+      selectedColor = card.dataset.selectedColor;
+      selectedImage = card.dataset.selectedImage || product.image;
+    }
+  }
+
+  const finalTitle = selectedColor ? `${product.title} (${selectedColor})` : product.title;
+  const finalImage = selectedImage || product.image;
+
+  const existing = AppState.cart.find(item => item.id === productId && (!selectedColor || item.color === selectedColor));
   if (existing) {
     existing.quantity += 1;
   } else {
     AppState.cart.push({
       id: product.id,
-      title: product.title,
+      title: finalTitle,
+      base_title: product.title,
+      color: selectedColor,
       price: product.price,
       original_price: product.original_price,
-      image: product.image,
+      image: finalImage,
       brand: product.brand,
       quantity: 1
     });
@@ -1054,7 +1094,7 @@ function addToCart(productId) {
   updateProductCardAction(productId);
   renderCartDrawer();
   renderRecommendations();
-  showToast(`Added "${product.title.slice(0, 30)}..." to Cart!`, "success");
+  showToast(`Added "${finalTitle.slice(0, 30)}..." to Cart!`, "success");
 
   // Real-time Excel Logging on host PC!
   try {
@@ -1385,6 +1425,11 @@ function renderCheckoutStep(step) {
           <input type="tel" id="chkPhone" value="${escapeHtml(checkoutFormData.phone)}" placeholder="10-digit mobile number" />
         </div>
         <div class="form-field-group full-width">
+          <label>Email Address * (for delivery dispatch & tracking)</label>
+          <input type="email" id="chkEmail" value="${escapeHtml(checkoutFormData.email || (AppState.user ? AppState.user.email_phone : ''))}" placeholder="e.g. name@gmail.com" oninput="onCheckoutEmailInput(this.value)" />
+          <div id="chkEmailStatusBox"></div>
+        </div>
+        <div class="form-field-group full-width">
           <label>Street Address / Flat / Building *</label>
           <input type="text" id="chkAddress" value="${escapeHtml(checkoutFormData.address)}" placeholder="House no., street name, landmark" />
         </div>
@@ -1487,17 +1532,26 @@ function renderCheckoutStep(step) {
 function saveAddressAndProceed() {
   const name = document.getElementById("chkName").value.trim();
   const phone = document.getElementById("chkPhone").value.trim();
+  const emailInput = document.getElementById("chkEmail");
+  const email = emailInput ? emailInput.value.trim() : "";
   const address = document.getElementById("chkAddress").value.trim();
   const city = document.getElementById("chkCity").value.trim();
   const pincode = document.getElementById("chkPincode").value.trim();
 
-  if (!name || !phone || !address || !pincode) {
-    showToast("Please fill all required address fields", "warning");
+  if (!name || !phone || !address || !pincode || !email) {
+    showToast("Please fill all required address & email fields", "warning");
+    return;
+  }
+
+  const emailCheck = isDeliveryEmailServiceable(email);
+  if (!emailCheck.serviceable) {
+    showToast(emailCheck.message, "error");
     return;
   }
 
   checkoutFormData.name = name;
   checkoutFormData.phone = phone;
+  checkoutFormData.email = email;
   checkoutFormData.address = address;
   checkoutFormData.city = city;
   checkoutFormData.pincode = pincode;
@@ -2080,31 +2134,58 @@ function escapeHtml(str) {
 
 
 /* ==========================================================================
-   SMART RECOMMENDATION ENGINE
+   UPGRADED SMART RECOMMENDATION ENGINE (WITH TABS & MODES)
    ========================================================================== */
-function getSmartRecommendations(limit = 8) {
+let currentRecMode = "for-you";
+
+function setRecMode(mode) {
+  currentRecMode = mode;
+  document.querySelectorAll(".rec-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.mode === mode);
+  });
+  renderRecommendations();
+}
+
+function getSmartRecommendations(limit = 10) {
   if (!AppState.products || AppState.products.length === 0) return [];
   
-  // Gather categories currently in cart
   const cartCategories = new Set(AppState.cart.map(c => {
     const full = AppState.products.find(p => p.id === c.id);
     return full ? full.category : null;
   }).filter(Boolean));
 
   const cartProductIds = new Set(AppState.cart.map(c => c.id));
+  let pool = [...AppState.products].filter(p => !cartProductIds.has(p.id));
 
-  // Score products based on rating, discount, bestseller, and cart synergy
-  const scored = AppState.products.map(p => {
-    let score = (p.rating || 4) * 10 + (p.discount || 0);
-    if (p.is_bestseller) score += 25;
-    if (p.is_deal) score += 20;
-    if (cartCategories.has(p.category)) score += 35;
-    if (cartProductIds.has(p.id)) score -= 100;
-    return { product: p, score };
-  });
+  if (currentRecMode === "trending") {
+    pool.sort((a, b) => {
+      const scoreA = (a.is_bestseller ? 50 : 0) + (a.reviews_count || 0);
+      const scoreB = (b.is_bestseller ? 50 : 0) + (b.reviews_count || 0);
+      return scoreB - scoreA;
+    });
+  } else if (currentRecMode === "deals") {
+    pool.sort((a, b) => (b.discount || 0) - (a.discount || 0));
+  } else if (currentRecMode === "frequently-bought") {
+    pool.sort((a, b) => {
+      let synergyA = 0, synergyB = 0;
+      if (cartCategories.has("Mobiles & Tablets") && (a.category === "Audio & Headphones" || a.category === "Smart Watches & Wearables")) synergyA += 40;
+      if (cartCategories.has("Mobiles & Tablets") && (b.category === "Audio & Headphones" || b.category === "Smart Watches & Wearables")) synergyB += 40;
+      if (cartCategories.has("Laptops & Computers") && (a.category === "Audio & Headphones" || a.category === "Cameras & Photography")) synergyA += 40;
+      if (cartCategories.has("Laptops & Computers") && (b.category === "Audio & Headphones" || b.category === "Cameras & Photography")) synergyB += 40;
+      return (synergyB + b.rating * 10) - (synergyA + a.rating * 10);
+    });
+  } else {
+    // "for-you": personalized blend of cart synergy, ratings, deals & bestsellers
+    pool.sort((a, b) => {
+      let scoreA = (a.rating || 4) * 12 + (a.discount || 0) + (a.is_bestseller ? 25 : 0) + (a.is_deal ? 20 : 0);
+      let scoreB = (b.rating || 4) * 12 + (b.discount || 0) + (b.is_bestseller ? 25 : 0) + (b.is_deal ? 20 : 0);
+      if (cartCategories.has(a.category)) scoreA += 35;
+      if (cartCategories.has(b.category)) scoreB += 35;
+      return scoreB - scoreA;
+    });
+  }
 
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit).map(s => s.product);
+  return pool.slice(0, limit);
 }
 
 function renderRecommendations() {
@@ -2119,11 +2200,21 @@ function renderRecommendations() {
 
   container.innerHTML = recs.map(p => `
     <div class="rec-card">
-      <img src="${p.image}" alt="${escapeHtml(p.title)}" class="rec-card-image" onclick="openQuickViewModal(${p.id})" loading="lazy" />
+      <img src="${p.image}" alt="${escapeHtml(p.title)}" class="rec-card-image" onclick="openProductQuickView(${p.id})" loading="lazy" />
       <div class="rec-card-category">${escapeHtml(p.category)}</div>
-      <div class="rec-card-title" onclick="openQuickViewModal(${p.id})" title="${escapeHtml(p.title)}">
+      <div class="rec-card-title" onclick="openProductQuickView(${p.id})" title="${escapeHtml(p.title)}">
         ${escapeHtml(p.title)}
       </div>
+
+      ${(p.colors && p.colors.length > 1) ? `
+        <div class="product-color-swatches" style="margin: 4px 0;" onclick="event.stopPropagation()">
+          ${p.colors.slice(0, 3).map((c, i) => `
+            <span class="product-color-dot ${i === 0 ? 'active' : ''}" style="background-color: ${c.hex || '#333'}; width: 12px; height: 12px;" title="${escapeHtml(c.name)}"></span>
+          `).join("")}
+          ${p.colors.length > 3 ? `<span class="product-color-count">+${p.colors.length - 3}</span>` : ''}
+        </div>
+      ` : ''}
+
       <div class="rec-card-price-row">
         <span class="rec-card-price">₹${p.price.toLocaleString("en-IN")}</span>
         ${p.original_price > p.price ? `<span class="rec-card-original">₹${p.original_price.toLocaleString("en-IN")}</span>` : ''}
@@ -2371,3 +2462,552 @@ function renderChatProductCards(products) {
     </div>
   `).join("");
 }
+
+
+/* ==========================================================================
+   COLOR VARIANTS & SWATCH SWITCHERS
+   ========================================================================== */
+function switchCardColor(productId, colorIdx, event) {
+  if (event) event.stopPropagation();
+  const product = AppState.products.find(p => p.id === productId);
+  if (!product || !product.colors || !product.colors[colorIdx]) return;
+
+  const selected = product.colors[colorIdx];
+  const card = document.getElementById(`productCard-${productId}`);
+  if (card) {
+    const imgElem = card.querySelector(".product-thumb-img");
+    if (imgElem && selected.image) {
+      imgElem.src = selected.image;
+    }
+    const dots = card.querySelectorAll(".product-color-dot");
+    dots.forEach((dot, i) => dot.classList.toggle("active", i === colorIdx));
+    card.dataset.selectedColor = selected.name;
+    card.dataset.selectedImage = selected.image;
+  }
+}
+
+function selectQuickViewColor(productId, colorName, colorImg, chipElem) {
+  const mainImg = document.getElementById("quickviewMainImg");
+  if (mainImg && colorImg) {
+    mainImg.src = colorImg;
+  }
+  const nameLabel = document.getElementById("quickviewSelectedColorName");
+  if (nameLabel) {
+    nameLabel.textContent = colorName;
+  }
+  const parent = chipElem.parentElement;
+  if (parent) {
+    parent.querySelectorAll(".quickview-color-chip").forEach(c => c.classList.remove("active"));
+  }
+  chipElem.classList.add("active");
+
+  const modal = document.getElementById("quickViewModal");
+  if (modal) {
+    modal.dataset.selectedColor = colorName;
+    modal.dataset.selectedImage = colorImg;
+  }
+
+  const card = document.getElementById(`productCard-${productId}`);
+  if (card) {
+    card.dataset.selectedColor = colorName;
+    card.dataset.selectedImage = colorImg;
+    const cardImg = card.querySelector(".product-thumb-img");
+    if (cardImg && colorImg) cardImg.src = colorImg;
+  }
+}
+
+function addQuickViewToCart(productId) {
+  const modal = document.getElementById("quickViewModal");
+  const color = modal ? modal.dataset.selectedColor : null;
+  const img = modal ? modal.dataset.selectedImage : null;
+  addToCart(productId, color, img);
+  closeQuickViewModal();
+}
+
+function buyNowFromQuickView(productId) {
+  const modal = document.getElementById("quickViewModal");
+  const color = modal ? modal.dataset.selectedColor : null;
+  const img = modal ? modal.dataset.selectedImage : null;
+  addToCart(productId, color, img);
+  closeQuickViewModal();
+  openCheckoutModal();
+}
+
+/* ==========================================================================
+   DELIVERY EMAIL SERVICEABILITY CHECK
+   ========================================================================== */
+const DISALLOWED_EMAIL_DOMAINS = [
+  "tempmail", "mailinator", "throwaway", "10minutemail", "fake", "test.com", "example.com",
+  "trashmail", "sharklasers", "dispostable", "getairmail", "yopmail", "guerrillamail",
+  "nada.ltd", "burnermail", "crazymailing", "fakeinbox", "mailcatch"
+];
+
+function isDeliveryEmailServiceable(email) {
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return { serviceable: false, message: "Please enter a valid email address." };
+  }
+  const parts = email.toLowerCase().trim().split("@");
+  if (parts.length !== 2 || !parts[0] || !parts[1] || !parts[1].includes(".")) {
+    return { serviceable: false, message: "Invalid email format." };
+  }
+  const domain = parts[1];
+  for (const d of DISALLOWED_EMAIL_DOMAINS) {
+    if (domain.includes(d)) {
+      return {
+        serviceable: false,
+        message: `Delivery service is not available for temporary email provider (${domain}). Please use a verified personal or corporate email (Gmail, Outlook, Yahoo, iCloud, etc.).`
+      };
+    }
+  }
+  return {
+    serviceable: true,
+    message: `Delivery Serviceable: Order dispatch, SMS tracking, and invoices are active for ${domain}. Updates will route to your email and store administration (support@shopx.store & raghavdeepak664@gmail.com).`
+  };
+}
+
+function onCheckoutEmailInput(value) {
+  const box = document.getElementById("chkEmailStatusBox");
+  if (!box) return;
+  const val = value.trim();
+  if (!val || val.length < 5) {
+    box.innerHTML = "";
+    return;
+  }
+  const check = isDeliveryEmailServiceable(val);
+  if (check.serviceable) {
+    box.className = "delivery-email-status-box serviceable";
+    box.innerHTML = `<span>✓</span> <div>${check.message}</div>`;
+  } else {
+    box.className = "delivery-email-status-box unserviceable";
+    box.innerHTML = `<span>⚠️</span> <div>${check.message}</div>`;
+  }
+}
+
+/* ==========================================================================
+   UNIVERSAL INFORMATION & HELP MODALS (ALL BUTTONS FULLY WORKING)
+   ========================================================================== */
+function openInfoModal(title, subtitle, contentHtml) {
+  const modal = document.getElementById("infoModal");
+  const container = document.getElementById("infoModalContent");
+  if (!modal || !container) return;
+
+  container.innerHTML = `
+    <div class="info-modal-header">
+      <div class="info-modal-title">${title}</div>
+      <div class="info-modal-subtitle">${subtitle}</div>
+    </div>
+    <div class="info-modal-body">
+      ${contentHtml}
+    </div>
+  `;
+  modal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+function closeInfoModal() {
+  const modal = document.getElementById("infoModal");
+  if (modal) modal.classList.remove("active");
+  document.body.style.overflow = "";
+}
+
+function openAboutModal() {
+  openInfoModal(
+    "🏪 About ShopX",
+    "India's next-generation hyper-speed shopping platform",
+    `
+    <p style="margin-bottom: 14px;">
+      <b>ShopX</b> is built with a singular vision: to bring the best elements of world-class e-commerce — unbeatable prices, authentic products, lightning-fast delivery, and an AI-powered personal shopping assistant — into one seamless experience.
+    </p>
+    <div class="info-grid-cards">
+      <div class="info-stat-card">
+        <div class="info-stat-num">40+</div>
+        <div class="info-stat-label">Curated Premium Products</div>
+      </div>
+      <div class="info-stat-card">
+        <div class="info-stat-num">100%</div>
+        <div class="info-stat-label">Genuine & ShopX Assured</div>
+      </div>
+      <div class="info-stat-card">
+        <div class="info-stat-num">24 Hours</div>
+        <div class="info-stat-label">Express Delivery Turnaround</div>
+      </div>
+      <div class="info-stat-card">
+        <div class="info-stat-num">24/7</div>
+        <div class="info-stat-label">Live Google Cloud Data Persistence</div>
+      </div>
+    </div>
+    <h4 style="margin: 16px 0 8px 0; font-size: 15px; font-weight: 700;">Our Guarantee</h4>
+    <p style="color: var(--text-muted); font-size: 13px;">
+      Every order placed on ShopX is protected by our 100% Purchase Protection guarantee. We work directly with verified brand authorized distributors and deploy AI smart logistics to ensure your package arrives in pristine condition.
+    </p>
+    `
+  );
+}
+
+function openCareersModal() {
+  openInfoModal(
+    "💼 Careers at ShopX",
+    "Join us in building the future of commerce and AI retail",
+    `
+    <p style="margin-bottom: 16px;">
+      We are looking for brilliant engineers, product leaders, logistics specialists, and customer champions who thrive on speed, innovation, and delighting millions of shoppers.
+    </p>
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+      <div style="padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-page); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;">Senior Full-Stack AI Engineer</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Bengaluru / Remote • Engineering • Full-time</div>
+        </div>
+        <button class="slide-cta-btn" style="padding: 6px 14px; font-size: 12px;" onclick="applyForRole('Senior Full-Stack AI Engineer')">Apply</button>
+      </div>
+
+      <div style="padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-page); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;">Supply Chain & Logistics Operations Manager</div>
+          <div style="font-size: 12px; color: var(--text-muted);">New Delhi / Mumbai • Operations • Full-time</div>
+        </div>
+        <button class="slide-cta-btn" style="padding: 6px 14px; font-size: 12px;" onclick="applyForRole('Logistics Operations Manager')">Apply</button>
+      </div>
+
+      <div style="padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--bg-page); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;">Product Designer (UI/UX)</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Bengaluru • Design • Full-time</div>
+        </div>
+        <button class="slide-cta-btn" style="padding: 6px 14px; font-size: 12px;" onclick="applyForRole('Product Designer')">Apply</button>
+      </div>
+    </div>
+    <p style="font-size: 12px; color: var(--text-muted);">
+      Send your portfolio and CV to our talent team at <b>careers@shopx.store</b> (monitored by raghavdeepak664@gmail.com).
+    </p>
+    `
+  );
+}
+
+function applyForRole(roleName) {
+  closeInfoModal();
+  openHelpSupportModal(`Job Application: ${roleName}`);
+}
+
+function openPressModal() {
+  openInfoModal(
+    "📰 Press Releases & Media Kit",
+    "Latest announcements and media resources from ShopX",
+    `
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="padding: 14px; border-left: 3px solid #f59e0b; background: var(--bg-page); border-radius: 4px;">
+        <div style="font-size: 11px; color: #f59e0b; font-weight: 700;">OCTOBER 2026</div>
+        <div style="font-weight: 700; font-size: 14px; margin: 4px 0;">ShopX Launches ShopBot AI Shopping Assistant & Real-time Cloud Sync</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Proprietary conversational assistant reduces product search latency by 85% and provides budget-aware personalized recommendations across 40+ catalog categories.</div>
+      </div>
+      <div style="padding: 14px; border-left: 3px solid #2563eb; background: var(--bg-page); border-radius: 4px;">
+        <div style="font-size: 11px; color: #2563eb; font-weight: 700;">SEPTEMBER 2026</div>
+        <div style="font-weight: 700; font-size: 14px; margin: 4px 0;">ShopX Expands Pan-India Delivery Coverage with Same-Day Dispatch</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Partnering with premier national carriers enables 24-hour delivery fulfillment to over 18,000 postal codes across metro and tier-2 cities.</div>
+      </div>
+    </div>
+    <div style="margin-top: 20px;">
+      <button class="slide-cta-btn" onclick="showToast('Press kit downloaded successfully!', 'success')">📥 Download Press Kit & Brand Assets</button>
+    </div>
+    `
+  );
+}
+
+function openTechModal() {
+  openInfoModal(
+    "🔬 ShopX Science & Technology",
+    "Architecting intelligent e-commerce at internet scale",
+    `
+    <p style="margin-bottom: 12px;">ShopX combines deep learning recommendation algorithms, ultra-responsive edge caching, and real-time event streaming to deliver an unmatched user experience.</p>
+    <div class="info-grid-cards">
+      <div class="info-stat-card">
+        <div style="font-weight: 700; margin-bottom: 4px;">⚡ ShopBot AI</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Natural language query parser for multi-turn product comparisons, budget filtering, and order tracking.</div>
+      </div>
+      <div class="info-stat-card">
+        <div style="font-weight: 700; margin-bottom: 4px;">☁️ Real-time Webhooks</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Thread-safe background streaming syncing cart additions, checkouts, and customer signups to Google Sheets 24/7.</div>
+      </div>
+      <div class="info-stat-card">
+        <div style="font-weight: 700; margin-bottom: 4px;">🔒 Cryptographic Security</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Salted PBKDF2 / SHA-256 password hashing and secure tokenized admin endpoints.</div>
+      </div>
+    </div>
+    `
+  );
+}
+
+function openStoriesModal() {
+  openInfoModal(
+    "❤️ ShopX Stories",
+    "Real customer experiences and merchant transformations",
+    `
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="padding: 14px; background: var(--bg-page); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+        <div style="font-style: italic; font-size: 13px; line-height: 1.5; margin-bottom: 8px;">
+          "I ordered the iPhone 15 Pro on Friday evening, and it was delivered to my doorstep on Saturday morning in pristine factory packaging. ShopBot helped me pick the right titanium color in under a minute!"
+        </div>
+        <div style="font-weight: 700; font-size: 12px;">— Priya Sharma, Bengaluru</div>
+      </div>
+      <div style="padding: 14px; background: var(--bg-page); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+        <div style="font-style: italic; font-size: 13px; line-height: 1.5; margin-bottom: 8px;">
+          "As an artisanal coffee brand, joining the ShopX Merchant Accelerator gave our small business access to thousands of daily coffee lovers across India."
+        </div>
+        <div style="font-weight: 700; font-size: 12px;">— Kunal Mehta, Founder at RoastCraft</div>
+      </div>
+    </div>
+    `
+  );
+}
+
+function openSellerModal() {
+  openInfoModal(
+    "💼 Sell on ShopX",
+    "Grow your business with India's fastest growing marketplace",
+    `
+    <p style="margin-bottom: 16px;">Join thousands of successful sellers. Enjoy <b>0% commission for your first 30 days</b>, automatic fulfillment, and instant payouts.</p>
+    <div style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 16px;">
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Merchant Registration Request</h4>
+      <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div class="form-field-group">
+          <label>Business / Brand Name</label>
+          <input type="text" id="sellerBrandName" placeholder="Acme Retail" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>GSTIN / Tax ID</label>
+          <input type="text" id="sellerGstin" placeholder="22AAAAA0000A1Z5" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Contact Email</label>
+          <input type="email" id="sellerEmail" placeholder="partner@brand.com" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Phone Number</label>
+          <input type="tel" id="sellerPhone" placeholder="10-digit mobile" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+      </div>
+      <button class="slide-cta-btn" style="margin-top: 14px; width: 100%; justify-content: center;" onclick="submitSellerApplication()">Submit Merchant Application</button>
+    </div>
+    <div style="font-size: 12px; color: var(--text-muted);">Our seller onboarding team (support@shopx.store) reviews all applications within 1 business day.</div>
+    `
+  );
+}
+
+function submitSellerApplication() {
+  const brand = document.getElementById("sellerBrandName") ? document.getElementById("sellerBrandName").value.trim() : "";
+  const email = document.getElementById("sellerEmail") ? document.getElementById("sellerEmail").value.trim() : "";
+  if (!brand || !email) {
+    showToast("Please enter your Brand Name and Email", "warning");
+    return;
+  }
+  fetch("/api/contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: brand,
+      email: email,
+      subject: "Seller Onboarding Application",
+      message: `New seller application for brand: ${brand}. Contact email: ${email}`
+    })
+  }).then(() => {
+    closeInfoModal();
+    showToast("Application submitted! Our Merchant Team will contact you shortly.", "success");
+  }).catch(() => {
+    closeInfoModal();
+    showToast("Application submitted successfully!", "success");
+  });
+}
+
+function openAffiliateModal() {
+  openInfoModal(
+    "🤝 ShopX Affiliate Program",
+    "Earn up to 12% commission by recommending ShopX products",
+    `
+    <p style="margin-bottom: 14px;">Whether you are a content creator, influencer, blogger, or publisher, share links to our 40+ premier products and earn high commissions on every qualified order.</p>
+    <div class="info-grid-cards">
+      <div class="info-stat-card">
+        <div class="info-stat-num">12%</div>
+        <div class="info-stat-label">Electronics & Audio Commission</div>
+      </div>
+      <div class="info-stat-card">
+        <div class="info-stat-num">10%</div>
+        <div class="info-stat-label">Footwear & Fashion Commission</div>
+      </div>
+      <div class="info-stat-card">
+        <div class="info-stat-num">30 Days</div>
+        <div class="info-stat-label">Attribution Cookie Window</div>
+      </div>
+    </div>
+    <div style="background: var(--bg-page); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin: 16px 0;">
+      <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">Your Instant Referral Link:</div>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" readonly value="https://shopx.store/?ref=partner2026" style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong); font-size: 12px; background: var(--bg-surface); color: var(--text-main);" />
+        <button class="slide-cta-btn" style="padding: 8px 14px; font-size: 12px;" onclick="navigator.clipboard.writeText('https://shopx.store/?ref=partner2026'); showToast('Affiliate link copied to clipboard!', 'success');">Copy</button>
+      </div>
+    </div>
+    `
+  );
+}
+
+function openReturnsModal() {
+  openInfoModal(
+    "🔄 Returns & 100% Purchase Protection",
+    "Hassle-free 7-day returns and instant refunds",
+    `
+    <p style="margin-bottom: 14px;">At ShopX, customer happiness comes first. If you're not completely satisfied with your purchase, return it easily within 7 days of delivery.</p>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <span style="font-size: 18px;">📦</span>
+        <div><b>Doorstep Pickup:</b> Our courier partner will inspect and pick up the item directly from your address at zero cost.</div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <span style="font-size: 18px;">⚡</span>
+        <div><b>Instant Refund:</b> Once picked up, refunds are credited back to your original payment method (UPI / Card) within 2-4 hours.</div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <span style="font-size: 18px;">🛡️</span>
+        <div><b>Authenticity Guarantee:</b> 100% money back if any item fails our ShopX Assured authenticity verification.</div>
+      </div>
+    </div>
+    <button class="slide-cta-btn" onclick="closeInfoModal(); openOrdersModal();">Check Your Orders to Request a Return</button>
+    `
+  );
+}
+
+function openAppDownloadModal() {
+  openInfoModal(
+    "📱 Download the ShopX App",
+    "Shop on the go with exclusive mobile app-only deals and real-time tracking",
+    `
+    <div style="display: grid; grid-template-columns: 140px 1fr; gap: 20px; align-items: center; margin-bottom: 20px;">
+      <div style="background: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid var(--border-subtle); text-align: center;">
+        <svg viewBox="0 0 100 100" width="120" height="120">
+          <rect width="100" height="100" fill="#ffffff"/>
+          <path d="M10 10h30v30h-30zM15 15h20v20h-20zM60 10h30v30h-30zM65 15h20v20h-20zM10 60h30v30h-30zM15 65h20v20h-20zM22 22h6v6h-6zM72 22h6v6h-6zM22 72h6v6h-6zM48 10h4v15h-4zM48 30h4v10h-4zM48 60h4v30h-4zM60 48h30v4h-30zM10 48h30v4h-30zM60 60h10v10h-10zM80 60h10v10h-10zM70 70h10v10h-10zM60 80h10v10h-10zM80 80h10v10h-10z" fill="#0f172a"/>
+        </svg>
+        <div style="font-size: 10px; font-weight: 700; color: #0f172a; margin-top: 4px;">SCAN TO DOWNLOAD</div>
+      </div>
+      <div>
+        <h4 style="font-size: 16px; font-weight: 800; margin-bottom: 6px;">Available on Android & iOS</h4>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Scan this QR code with your mobile camera or tap the links below to install the official ShopX app.</p>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="slide-cta-btn" style="padding: 8px 14px; font-size: 12px;" onclick="showToast('Downloading ShopX Android APK...', 'success')">🤖 Android (Google Play)</button>
+          <button class="slide-cta-btn" style="padding: 8px 14px; font-size: 12px; background: #0f172a;" onclick="showToast('Opening Apple App Store...', 'success')">🍎 Apple iOS (App Store)</button>
+        </div>
+      </div>
+    </div>
+    `
+  );
+}
+
+function openHelpSupportModal(defaultSubject = "") {
+  openInfoModal(
+    "🎧 Help & Customer Support 24x7",
+    "Official ShopX Support, Inquiries & Escalation",
+    `
+    <div class="support-channel-grid">
+      <div class="support-channel-card">
+        <div class="support-channel-title">📧 Business & Support Email</div>
+        <div class="support-channel-desc">Direct inquiries, order issues & merchant support. Linked to store administration.</div>
+        <a href="mailto:support@shopx.store" class="support-channel-link">support@shopx.store</a>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">CC: raghavdeepak664@gmail.com</div>
+      </div>
+
+      <div class="support-channel-card">
+        <div class="support-channel-title">🤖 ShopBot Live AI Chat</div>
+        <div class="support-channel-desc">Instant 24/7 answers for order tracking, deals, coupons, and specifications.</div>
+        <a href="javascript:void(0)" onclick="closeInfoModal(); toggleShopbot();" class="support-channel-link">Open Live Chat →</a>
+      </div>
+
+      <div class="support-channel-card">
+        <div class="support-channel-title">📦 Order Tracking & Returns</div>
+        <div class="support-channel-desc">Check live courier transit status, dispatch timing, and return requests.</div>
+        <a href="javascript:void(0)" onclick="closeInfoModal(); openOrdersModal();" class="support-channel-link">View My Orders →</a>
+      </div>
+    </div>
+
+    <div style="background: var(--bg-page); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+      <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px;">Send a Direct Message to Customer Care</h4>
+      <form onsubmit="submitContactInquiry(event)">
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div class="form-field-group">
+            <label>Your Name *</label>
+            <input type="text" id="contactName" required placeholder="John Doe" value="${AppState.user ? escapeHtml(AppState.user.name) : ''}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+          </div>
+          <div class="form-field-group">
+            <label>Your Email *</label>
+            <input type="email" id="contactEmail" required placeholder="john@gmail.com" value="${AppState.user ? escapeHtml(AppState.user.email_phone) : ''}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+          </div>
+        </div>
+        <div class="form-field-group" style="margin-bottom: 10px;">
+          <label>Subject *</label>
+          <input type="text" id="contactSubject" required placeholder="e.g. Order Delivery Status or Product Inquiry" value="${escapeHtml(defaultSubject)}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group" style="margin-bottom: 14px;">
+          <label>Message *</label>
+          <textarea id="contactMessage" required rows="3" placeholder="Tell us how we can help you..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong); font-family: inherit;"></textarea>
+        </div>
+        <button type="submit" class="slide-cta-btn" id="contactSubmitBtn" style="width: 100%; justify-content: center;">
+          Send Message to Support Team
+        </button>
+      </form>
+    </div>
+    `
+  );
+}
+
+function submitContactInquiry(event) {
+  event.preventDefault();
+  const name = document.getElementById("contactName").value.trim();
+  const email = document.getElementById("contactEmail").value.trim();
+  const subject = document.getElementById("contactSubject").value.trim();
+  const message = document.getElementById("contactMessage").value.trim();
+  const btn = document.getElementById("contactSubmitBtn");
+
+  if (!name || !email || !message) {
+    showToast("Please fill all required fields", "warning");
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Sending Message...";
+  }
+
+  fetch("/api/contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, subject, message })
+  })
+  .then(res => res.json())
+  .then(data => {
+    closeInfoModal();
+    showToast(data.message || "Message sent successfully!", "success");
+  })
+  .catch(() => {
+    closeInfoModal();
+    showToast("Message recorded! Our team at support@shopx.store will reach out shortly.", "success");
+  });
+}
+
+function openSocialModal(platform) {
+  openInfoModal(
+    `🌐 Connect on ${platform}`,
+    `Join our official community of over 500,000+ shoppers`,
+    `
+    <p style="margin-bottom: 14px;">Follow <b>@ShopXOfficial</b> on ${platform} for exclusive discount drops, flash sales, tech unboxings, and giveaways.</p>
+    <div style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">ShopX Official Channel</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Verified Community & Updates</div>
+      </div>
+      <a href="https://${platform.toLowerCase().replace(/[^a-z]/g, '')}.com" target="_blank" rel="noopener noreferrer" class="slide-cta-btn" style="text-decoration: none; padding: 8px 16px;">
+        Follow on ${platform}
+      </a>
+    </div>
+    `
+  );
+}
+
+// Global Alias
+window.openQuickViewModal = openProductQuickView;

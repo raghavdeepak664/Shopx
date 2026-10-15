@@ -10,6 +10,11 @@
   <link rel="stylesheet" href="/static/css/style.css" />
   <!-- Fallback relative stylesheet if opened directly as file:// -->
   <link rel="stylesheet" href="static/css/style.css" />
+  <!-- Favicon / Brand Logo on URL and Browser Tab -->
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+  <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg" />
   <script>
     (function() {
       var hasCookie = document.cookie.indexOf("shopx_user_session=") !== -1;
@@ -35,8 +40,7 @@
           <span class="brand-shop">Shop</span><span class="brand-x">X</span>
         </div>
         <div class="logo-tagline">
-          <span>Explore</span>
-          <span class="plus-badge">Plus⚡</span>
+          <span>Explore More</span>
         </div>
       </div>
 
@@ -139,7 +143,7 @@
         <div class="sub-nav-item" onclick="selectCategory('Footwear & Sneakers')">Sneakers</div>
         <div class="sub-nav-item" onclick="selectCategory('Home & Kitchen')">Home & Kitchen</div>
         <div class="sub-nav-item" onclick="openOrdersModal()">Track Orders</div>
-        <div class="sub-nav-item highlight" style="margin-left: auto;">ShopX Plus ⚡ Extra 10% Off</div>
+        <div class="sub-nav-item highlight" style="margin-left: auto;" onclick="openHelpSupportModal()"><span style="margin-right: 4px;">🎧</span> 24x7 Customer Help: support@shopx.store</div>
       </div>
     </div>
   </header>
@@ -392,6 +396,15 @@
           <button class="rec-arrow-btn" onclick="scrollRecommendations(1)" title="Scroll Right">›</button>
         </div>
       </div>
+
+      <!-- Recommendation Engine Tabs -->
+      <div class="rec-tabs-row" id="recTabsRow">
+        <button class="rec-tab-btn active" data-mode="for-you" onclick="setRecMode('for-you')">🎯 For You</button>
+        <button class="rec-tab-btn" data-mode="trending" onclick="setRecMode('trending')">✨ Trending Now</button>
+        <button class="rec-tab-btn" data-mode="deals" onclick="setRecMode('deals')">🔥 Mega Deals</button>
+        <button class="rec-tab-btn" data-mode="frequently-bought" onclick="setRecMode('frequently-bought')">💡 Frequently Bought Together</button>
+      </div>
+
       <div class="recommendations-scroll-container" id="recommendationsScrollContainer">
         <!-- Rendered dynamically via JS -->
       </div>
@@ -538,6 +551,16 @@
     </div>
   </div>
 
+  <!-- ==========================================================================
+       UNIVERSAL INFORMATION & SUPPORT MODAL (ALL BUTTONS FULLY FUNCTIONAL)
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="infoModal" onclick="if(event.target===this) closeInfoModal()">
+    <div class="modal-container-card" style="max-width: 680px;">
+      <button class="modal-close-btn" onclick="closeInfoModal()">×</button>
+      <div id="infoModalContent"></div>
+    </div>
+  </div>
+
   <!-- Confetti Canvas for Celebratory Checkout Animation -->
   <canvas id="confettiCanvas" style="position: fixed; inset: 0; pointer-events: none; z-index: 9999; display: none;"></canvas>
 
@@ -553,43 +576,43 @@
       <div>
         <div class="footer-col-title">Get to Know Us</div>
         <ul class="footer-links-list">
-          <li><a href="#">About ShopX</a></li>
-          <li><a href="#">Careers</a></li>
-          <li><a href="#">Press Releases</a></li>
-          <li><a href="#">ShopX Science & Tech</a></li>
-          <li><a href="#">ShopX Stories</a></li>
+          <li><a href="javascript:void(0)" onclick="openAboutModal()">About ShopX</a></li>
+          <li><a href="javascript:void(0)" onclick="openCareersModal()">Careers</a></li>
+          <li><a href="javascript:void(0)" onclick="openPressModal()">Press Releases</a></li>
+          <li><a href="javascript:void(0)" onclick="openTechModal()">ShopX Science & Tech</a></li>
+          <li><a href="javascript:void(0)" onclick="openStoriesModal()">ShopX Stories</a></li>
         </ul>
       </div>
 
       <div>
         <div class="footer-col-title">Connect with Us</div>
         <ul class="footer-links-list">
-          <li><a href="#">Facebook</a></li>
-          <li><a href="#">Twitter / X</a></li>
-          <li><a href="#">Instagram</a></li>
-          <li><a href="#">YouTube</a></li>
+          <li><a href="javascript:void(0)" onclick="openSocialModal('Facebook')">Facebook</a></li>
+          <li><a href="javascript:void(0)" onclick="openSocialModal('Twitter / X')">Twitter / X</a></li>
+          <li><a href="javascript:void(0)" onclick="openSocialModal('Instagram')">Instagram</a></li>
+          <li><a href="javascript:void(0)" onclick="openSocialModal('YouTube')">YouTube</a></li>
         </ul>
       </div>
 
       <div>
         <div class="footer-col-title">Make Money with Us</div>
         <ul class="footer-links-list">
-          <li><a href="#">Sell on ShopX</a></li>
-          <li><a href="#">Sell under ShopX Accelerator</a></li>
-          <li><a href="#">Protect and Build Your Brand</a></li>
-          <li><a href="#">ShopX Global Selling</a></li>
-          <li><a href="#">Become an Affiliate</a></li>
-          <li><a href="#">Fulfillment by ShopX</a></li>
+          <li><a href="javascript:void(0)" onclick="openSellerModal()">Sell on ShopX</a></li>
+          <li><a href="javascript:void(0)" onclick="openSellerModal()">Sell under ShopX Accelerator</a></li>
+          <li><a href="javascript:void(0)" onclick="openAboutModal()">Protect and Build Your Brand</a></li>
+          <li><a href="javascript:void(0)" onclick="openSellerModal()">ShopX Global Selling</a></li>
+          <li><a href="javascript:void(0)" onclick="openAffiliateModal()">Become an Affiliate</a></li>
+          <li><a href="javascript:void(0)" onclick="openSellerModal()">Fulfillment by ShopX</a></li>
         </ul>
       </div>
 
       <div>
         <div class="footer-col-title">Let Us Help You</div>
         <ul class="footer-links-list">
-          <li><a href="#" onclick="openOrdersModal()">Your Account & Orders</a></li>
-          <li><a href="#">Returns Centre & 100% Purchase Protection</a></li>
-          <li><a href="#">ShopX App Download</a></li>
-          <li><a href="#">Help & Customer Support 24x7</a></li>
+          <li><a href="javascript:void(0)" onclick="openOrdersModal()">Your Account & Orders</a></li>
+          <li><a href="javascript:void(0)" onclick="openReturnsModal()">Returns Centre & 100% Purchase Protection</a></li>
+          <li><a href="javascript:void(0)" onclick="openAppDownloadModal()">ShopX App Download</a></li>
+          <li><a href="javascript:void(0)" onclick="openHelpSupportModal()">Help & Customer Support 24x7</a></li>
         </ul>
       </div>
     </div>

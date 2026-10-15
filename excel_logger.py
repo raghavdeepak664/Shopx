@@ -276,11 +276,15 @@ def log_order_purchase(order_dict, ip_address="127.0.0.1"):
         order_dict.get("status", "Order Confirmed")
     ]
 
+    email_contact = order_dict.get("email") or order_dict.get("customer_email") or order_dict.get("phone") or order_dict.get("customer_phone") or "N/A"
+    if order_dict.get("email") and order_dict.get("phone"):
+        email_contact = f"{order_dict.get('email')} | {order_dict.get('phone')}"
+
     # Also log to main stream
     log_event(
         event_type="ORDER_PLACED",
         customer_name=order_dict.get("name") or order_dict.get("customer_name"),
-        email_phone=order_dict.get("phone") or order_dict.get("customer_phone"),
+        email_phone=email_contact,
         details=f"Order {order_dict.get('order_id')}: {items_summary}",
         amount=order_dict.get("total", 0),
         ip_address=ip_address

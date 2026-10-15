@@ -25,6 +25,10 @@ def index():
         return redirect("/login")
     return render_template("index.html")
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, "static", "images"), "favicon.svg", mimetype="image/svg+xml")
+
 @app.route("/store")
 def store_page():
     return render_template("index.html")
@@ -85,11 +89,71 @@ def api_validate_coupon():
     res = database.validate_coupon(code, order_amount)
     return jsonify(res)
 
+DISALLOWED_EMAIL_DOMAINS = [
+    "tempmail", "mailinator", "throwaway", "10minutemail", "fake", "test.com", "example.com",
+    "trashmail", "sharklasers", "dispostable", "getairmail", "yopmail", "guerrillamail",
+    "nada.ltd", "burnermail", "crazymailing", "fakeinbox", "mailcatch"
+]
+
+def is_delivery_serviceable_email(email):
+    """
+    Validate whether standard/express courier delivery & tracking are active for an email.
+    Delivery is serviceable for genuine personal & corporate domains (Gmail, Outlook, Yahoo, iCloud, etc.).
+    Disposable, temporary, and test domains are rejected.
+    """
+    if not email or "@" not in email:
+        return False, "Please provide a valid email address for order delivery."
+    
+    parts = email.lower().strip().split("@")
+    if len(parts) != 2 or not parts[0] or not parts[1] or "." not in parts[1]:
+        return False, "Invalid email address format."
+    
+    domain = parts[1]
+    for disallowed in DISALLOWED_EMAIL_DOMAINS:
+        if disallowed in domain:
+            return False, f"Delivery service is not available for '{domain}'. Please use a verified personal or corporate email (such as Gmail, Outlook, Yahoo, etc.) to receive tracking and delivery dispatch."
+    
+    return True, f"Delivery service is active for {email}. Tracking and receipt will be dispatched."
+
+@app.route("/api/delivery/check-email", methods=["POST"])
+def api_check_delivery_email():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip()
+    serviceable, msg = is_delivery_serviceable_email(email)
+    return jsonify({
+        "success": True,
+        "serviceable": serviceable,
+        "message": msg
+    })
+
+@app.route("/api/contact", methods=["POST"])
+def api_contact():
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    subject = data.get("subject", "").strip() or "General Inquiry"
+    message = data.get("message", "").strip()
+    
+    if not name or not email or not message:
+        return jsonify({"success": False, "message": "Name, email, and message are required."}), 400
+    
+    database.save_contact_inquiry(name, email, subject, message)
+    return jsonify({
+        "success": True,
+        "message": f"Thank you {name}! Your message has been sent to our business team at support@shopx.store and escalated to store administration (raghavdeepak664@gmail.com). We will get back to you shortly."
+    })
+
 @app.route("/api/orders", methods=["POST"])
 def api_create_order():
     data = request.get_json() or {}
     if not data.get("items"):
         return jsonify({"success": False, "message": "Cart is empty"}), 400
+    
+    email = data.get("email") or data.get("customer_email") or ""
+    if email:
+        serviceable, msg = is_delivery_serviceable_email(email)
+        if not serviceable:
+            return jsonify({"success": False, "message": msg}), 400
     
     order_info = database.create_order(data)
     return jsonify({"success": True, "order": order_info})

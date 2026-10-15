@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#131921" />
+      <stop offset="100%" stop-color="#0b0f19" />
+    </linearGradient>
+    <linearGradient id="xGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb703" />
+      <stop offset="100%" stop-color="#fb8500" />
+    </linearGradient>
+    <linearGradient id="smileGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff9900" />
+      <stop offset="100%" stop-color="#ff5500" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#fb8500" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bgGrad)" stroke="#ff9900" stroke-width="2.5" />
+
+  <!-- Accent Inner Glow -->
+  <circle cx="96" cy="32" r="32" fill="#ffb703" opacity="0.1" />
+
+  <!-- Letter S -->
+  <text x="24" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="54" font-weight="900" fill="#ffffff" letter-spacing="-2">S</text>
+
+  <!-- Letter X with vibrant styling -->
+  <text x="64" y="78" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="56" font-weight="900" fill="url(#xGrad)" filter="url(#glow)">X</text>
+
+  <!-- Smile Swoosh Arrow underneath -->
+  <path d="M 28 92 C 54 106, 78 104, 102 91" fill="none" stroke="url(#smileGrad)" stroke-width="6" stroke-linecap="round" />
+  <polygon points="104,91 93,85 96,96" fill="#fb8500" />
+
+  <!-- Little Shopping Sparkle dot -->
+  <circle cx="104" cy="38" r="4" fill="#fb8500" />
+</svg>

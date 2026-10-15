@@ -123,44 +123,42 @@ def init_db():
     )
     """)
 
+    # Contact inquiries table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS contact_inquiries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING'
+    )
+    """)
+
+    # Ensure customer_email column exists on orders
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN customer_email TEXT")
+    except Exception:
+        pass
+
     conn.commit()
 
-    # Seed products if empty
-    cursor.execute("SELECT COUNT(*) FROM products")
-    count = cursor.fetchone()[0]
-    if count == 0:
-        seed_data(cursor)
-        conn.commit()
+    # Re-sync products table with clean 40-item catalog & color variants
+    cursor.execute("DELETE FROM products")
+    seed_data(cursor)
+    conn.commit()
 
     conn.close()
 
 def seed_data(cursor):
-    # Parse initial products from products-data.js or define cleanly here
-    js_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "js", "products-data.js")
-    if os.path.exists(js_data_path):
-        with open(js_data_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            # Extract JSON from INITIAL_PRODUCTS
-            start = content.find("const INITIAL_PRODUCTS = [")
-            end = content.find("];\n\n// Sample customer reviews data")
-            if start != -1 and end != -1:
-                json_str = content[start + len("const INITIAL_PRODUCTS = "):end + 1]
-                # Replace JS keys with quoted keys for valid json if needed, or parse via fallback
-                try:
-                    products = json.loads(json_str)
-                except Exception:
-                    products = []
-            else:
-                products = []
-    else:
-        products = []
-
-    # If parsing failed or empty, write direct catalog
-    if not products:
-        from static_data import DEFAULT_PRODUCTS
-        products = DEFAULT_PRODUCTS
+    from static_data import DEFAULT_PRODUCTS
+    products = DEFAULT_PRODUCTS
 
     for p in products:
+        specs = p.get("specs", {}).copy()
+        if "colors" in p:
+            specs["colors"] = p["colors"]
         cursor.execute("""
         INSERT INTO products (
             id, title, brand, category, price, original_price, discount, rating,
@@ -181,7 +179,7 @@ def seed_data(cursor):
             p.get("image"),
             json.dumps(p.get("additional_images", [p.get("image")])),
             p.get("description"),
-            json.dumps(p.get("specs", {})),
+            json.dumps(specs),
             1 if p.get("in_stock", True) else 0,
             1 if p.get("is_bestseller", False) else 0,
             1 if p.get("is_deal", False) else 0,
@@ -191,12 +189,12 @@ def seed_data(cursor):
             json.dumps(p.get("tags", []))
         ))
 
-    # Seed Coupons
+    # Seed Coupons (Updated: Removed ShopX Plus, added FESTIVE10)
     coupons = [
         ("SHOPX100", "fixed", 100, None, 500, "Flat ₹100 OFF on orders above ₹500"),
         ("FESTIVE20", "percent", 20, 1000, 1500, "20% OFF up to ₹1,000"),
         ("WELCOME50", "fixed", 50, None, 299, "Flat ₹50 OFF on first purchase"),
-        ("PRIMEPLUS", "percent", 10, 500, 999, "10% OFF for ShopX Plus members")
+        ("FESTIVE10", "percent", 10, 500, 999, "10% OFF on all orders above ₹999")
     ]
     cursor.executemany("INSERT OR REPLACE INTO coupons VALUES (?, ?, ?, ?, ?, ?)", coupons)
 
@@ -275,6 +273,7 @@ def get_products(query="", category="", min_price=None, max_price=None, min_rati
         d = dict(r)
         d["additional_images"] = json.loads(d["additional_images"]) if d["additional_images"] else []
         d["specs"] = json.loads(d["specs"]) if d["specs"] else {}
+        d["colors"] = d["specs"].get("colors", [])
         d["tags"] = json.loads(d["tags"]) if d["tags"] else []
         d["in_stock"] = bool(d["in_stock"])
         d["is_bestseller"] = bool(d["is_bestseller"])
@@ -297,6 +296,7 @@ def get_product(product_id):
     d = dict(row)
     d["additional_images"] = json.loads(d["additional_images"]) if d["additional_images"] else []
     d["specs"] = json.loads(d["specs"]) if d["specs"] else {}
+    d["colors"] = d["specs"].get("colors", [])
     d["tags"] = json.loads(d["tags"]) if d["tags"] else []
     
     # Also fetch reviews
@@ -364,16 +364,19 @@ def create_order(order_data):
     from datetime import timedelta
     delivery_date = (datetime.now() + timedelta(days=2)).strftime("%A, %d %b %Y")
 
+    customer_email = order_data.get("email") or order_data.get("customer_email") or ""
+
     cursor.execute("""
     INSERT INTO orders (
-        order_id, created_at, customer_name, customer_phone, address,
+        order_id, created_at, customer_name, customer_email, customer_phone, address,
         city, pincode, payment_method, items, subtotal, discount,
         delivery_fee, coupon_applied, total, status, expected_delivery
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         order_id,
         created_at,
         order_data.get("name", "Customer"),
+        customer_email,
         order_data.get("phone", "9876543210"),
         order_data.get("address", "Flat 402, Highline Residency"),
         order_data.get("city", "New Delhi"),
@@ -396,7 +399,8 @@ def create_order(order_data):
         "status": "Order Confirmed",
         "created_at": created_at,
         "expected_delivery": delivery_date,
-        "total": order_data.get("total", 0)
+        "total": order_data.get("total", 0),
+        "customer_email": customer_email
     }
 
     # Automatically save purchase data to Excel and CSV on user's PC!
@@ -406,6 +410,32 @@ def create_order(order_data):
         print("Excel logging error:", e)
 
     return result
+
+def save_contact_inquiry(name, email, subject, message):
+    """Save customer or seller business inquiry and stream to Google Sheets."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+    INSERT INTO contact_inquiries (timestamp, name, email, subject, message, status)
+    VALUES (?, ?, ?, ?, ?, 'NEW')
+    """, (timestamp, name, email, subject, message))
+    conn.commit()
+    conn.close()
+
+    # Log to Excel and Google Sheets live webhook
+    try:
+        excel_logger.log_event(
+            event_type="CONTACT_INQUIRY",
+            customer_name=name,
+            email_phone=email,
+            details=f"[{subject}] {message[:60]}",
+            amount=0
+        )
+    except Exception as e:
+        print("Error logging contact inquiry:", e)
+
+    return {"success": True, "message": "Inquiry recorded successfully"}
 
 def get_orders():
     conn = get_connection()
