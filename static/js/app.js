@@ -827,6 +827,402 @@ function loadMoreProducts() {
   renderProductsGrid();
 }
 
+function renderLoadingState() {
+  const gridContainer = document.getElementById("productsGrid");
+  if (!gridContainer) return;
+  gridContainer.innerHTML = Array(8).fill(0).map(() => `
+    <div class="product-card" style="opacity: 0.6; min-height: 380px;">
+      <div class="product-image-container" style="background-color: var(--border-subtle); animation: pulse 1.5s infinite;"></div>
+      <div class="product-info-box">
+        <div style="height: 14px; width: 40%; background: var(--border-subtle); margin-bottom: 8px; border-radius: 4px;"></div>
+        <div style="height: 18px; width: 90%; background: var(--border-subtle); margin-bottom: 8px; border-radius: 4px;"></div>
+        <div style="height: 18px; width: 60%; background: var(--border-subtle); margin-bottom: 12px; border-radius: 4px;"></div>
+        <div style="height: 24px; width: 50%; background: var(--border-subtle); margin-top: auto; border-radius: 4px;"></div>
+      </div>
+    </div>
+  `).join("");
+}
+
+/* ==========================================================================
+   PRODUCT DETAILS & QUICK VIEW MODAL
+   ========================================================================== */
+function openProductQuickView(productId) {
+  const product = AppState.products.find(p => p.id === productId);
+  if (!product) return;
+
+  const modal = document.getElementById("quickViewModal");
+  const content = document.getElementById("quickViewModalContent");
+  if (!modal || !content) return;
+
+  const images = [product.image, ...(product.additional_images || [])];
+  const reviews = (typeof INITIAL_REVIEWS !== "undefined" && INITIAL_REVIEWS[product.id]) ? INITIAL_REVIEWS[product.id] : [
+    { author: "Rohan Khanna", rating: 5, date: "3 days ago", verified: true, title: "Superb product!", comment: "Delivered within 24 hours. Pristine packaging and exactly as described." }
+  ];
+
+  content.innerHTML = `
+    <div class="quickview-layout">
+      <!-- Gallery Column -->
+      <div class="quickview-gallery">
+        <div class="quickview-main-image-wrap">
+          <img id="quickviewMainImg" src="${product.image}" alt="${escapeHtml(product.title)}" class="quickview-main-img" />
+        </div>
+        <div class="quickview-thumbnails-row">
+          ${images.map((img, idx) => `
+            <div class="quickview-thumb-item ${idx === 0 ? "active" : ""}" onclick="switchQuickViewImage('${img}', this)">
+              <img src="${img}" alt="Thumbnail ${idx}" />
+            </div>
+          `).join("")}
+        </div>
+      </div>
+
+      <!-- Details Column -->
+      <div class="quickview-details">
+        <div>
+          <span class="product-brand-tag">${escapeHtml(product.brand)}</span>
+          <h2 class="quickview-title">${escapeHtml(product.title)}</h2>
+        </div>
+
+        <div class="product-card-rating-row">
+          <span class="rating-pill-green">
+            ${product.rating} ★
+          </span>
+          <span class="review-count-text">(${product.reviews_count.toLocaleString()} customer ratings)</span>
+          ${product.is_assured ? `<span class="assured-inline-badge">Shop<b>X</b> <span>Assured</span></span>` : ""}
+        </div>
+
+        <div class="product-price-block" style="margin: 8px 0;">
+          <span class="product-current-price" style="font-size: 26px;">₹${product.price.toLocaleString("en-IN")}</span>
+          <span class="product-original-mrp" style="font-size: 16px;">₹${product.original_price.toLocaleString("en-IN")}</span>
+          <span class="product-discount-percentage" style="font-size: 16px;">${product.discount}% OFF</span>
+        </div>
+
+        <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">${escapeHtml(product.description)}</p>
+
+        <!-- Variants (Colors / Sizes) -->
+        ${(product.colors && product.colors.length > 0) ? `
+          <div style="margin: 10px 0;">
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">
+              Select Color: <span id="quickviewSelectedColorName" style="color: #2563eb; font-weight: 800;">${escapeHtml(product.colors[0].name)}</span>
+            </div>
+            <div class="variants-row" style="display: flex; flex-wrap: wrap; gap: 8px;">
+              ${product.colors.map((c, i) => `
+                <div class="quickview-color-chip ${i === 0 ? 'active' : ''}" 
+                     onclick="selectQuickViewColor(${product.id}, '${escapeHtml(c.name)}', '${c.image}', this)">
+                  <span class="quickview-color-dot" style="background-color: ${c.hex || '#333'};"></span>
+                  <span>${escapeHtml(c.name)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        ` : (product.specs && product.specs.Colors ? `
+          <div style="margin: 10px 0;">
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Available Colors:</div>
+            <div class="variants-row">
+              ${product.specs.Colors.map((color, i) => `
+                <div class="variant-pill ${i === 0 ? "active" : ""}" onclick="selectVariant(this)">${color}</div>
+              `).join("")}
+            </div>
+          </div>
+        ` : "")}
+
+        ${product.specs && product.specs["Sizes Available"] ? `
+          <div>
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Select Size:</div>
+            <div class="variants-row">
+              ${product.specs["Sizes Available"].map((sz, i) => `
+                <div class="variant-pill ${i === 0 ? "active" : ""}" onclick="selectVariant(this)">${sz}</div>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+
+        <!-- Pincode Delivery Check -->
+        <div class="pincode-check-card">
+          <div style="font-size: 12px; font-weight: 700;">Check Delivery & Services:</div>
+          <div class="pincode-form-row">
+            <input type="text" id="quickviewPincodeInput" class="pincode-input-box" placeholder="Enter 6 digit pincode" value="${AppState.deliveryPincode}" maxlength="6" />
+            <button class="pincode-check-btn" onclick="checkProductPincode()">Check</button>
+          </div>
+          <div id="pincodeFeedback" class="pincode-feedback-msg">
+            ✓ Delivery by <b>Tomorrow, 11:00 AM</b> | <span style="color: var(--rating-green);">FREE Delivery</span>
+          </div>
+        </div>
+
+        <!-- Specifications Table -->
+        ${product.specs ? `
+          <div>
+            <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Key Highlights:</div>
+            <table class="specs-table">
+              ${Object.entries(product.specs).map(([k, v]) => Array.isArray(v) ? "" : `
+                <tr>
+                  <td>${k}</td>
+                  <td>${v}</td>
+                </tr>
+              `).join("")}
+            </table>
+          </div>
+        ` : ""}
+
+        <!-- Action CTA Buttons -->
+        <div class="quickview-actions-row">
+          <button class="add-to-cart-btn" style="padding: 14px; font-size: 14px;" onclick="addQuickViewToCart(${product.id})">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+            Add to Cart
+          </button>
+          <button class="btn-buy-now" onclick="buyNowFromQuickView(${product.id})">
+            ⚡ Buy Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Customer Reviews Section -->
+      <div class="customer-reviews-section">
+        <div class="reviews-header">
+          <h3 style="font-size: 16px; font-weight: 800;">Customer Reviews (${reviews.length})</h3>
+          <button class="write-review-btn" onclick="openWriteReviewBox(${product.id})">+ Write a Review</button>
+        </div>
+
+        <!-- Write Review Form Container (Hidden by default) -->
+        <div id="writeReviewFormWrap" style="display: none; background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
+          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">Share your experience with this product</h4>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
+            <span style="font-size: 12px; font-weight: 600;">Your Rating:</span>
+            <div id="newReviewStarRating" style="cursor: pointer; font-size: 20px; color: var(--amazon-amber);">
+              <span onclick="setReviewRating(1)">★</span>
+              <span onclick="setReviewRating(2)">★</span>
+              <span onclick="setReviewRating(3)">★</span>
+              <span onclick="setReviewRating(4)">★</span>
+              <span onclick="setReviewRating(5)">★</span>
+            </div>
+          </div>
+          <input type="text" id="newReviewTitle" class="form-field-group input" placeholder="Review Headline" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+          <textarea id="newReviewComment" rows="3" placeholder="Write your review comments here..." style="width: 100%; padding: 8px; margin-bottom: 12px; border-radius: 4px; border: 1px solid var(--border-strong); font-family: inherit;"></textarea>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button onclick="document.getElementById('writeReviewFormWrap').style.display='none'" style="padding: 6px 12px; border-radius: 4px; background: var(--border-subtle);">Cancel</button>
+            <button onclick="submitProductReview(${product.id})" style="padding: 6px 16px; border-radius: 4px; background: var(--flipkart-blue); color: #fff; font-weight: 700;">Submit Review</button>
+          </div>
+        </div>
+
+        <div class="reviews-list-container" id="productReviewsList">
+          ${reviews.map(r => `
+            <div class="review-item-card">
+              <div class="review-author-row">
+                <span class="rating-pill-green">${r.rating} ★</span>
+                <span class="review-author-name">${escapeHtml(r.author)}</span>
+                ${r.verified ? `<span class="verified-buyer-tag">✓ Verified Purchase</span>` : ""}
+                <span style="margin-left: auto; font-size: 11px; color: var(--text-muted);">${r.date}</span>
+              </div>
+              <div class="review-title">${escapeHtml(r.title)}</div>
+              <div class="review-comment">${escapeHtml(r.comment)}</div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+function closeQuickViewModal() {
+  const modal = document.getElementById("quickViewModal");
+  if (modal) modal.classList.remove("active");
+  document.body.style.overflow = "";
+}
+
+function switchQuickViewImage(imgSrc, thumbElem) {
+  const mainImg = document.getElementById("quickviewMainImg");
+  if (mainImg) mainImg.src = imgSrc;
+  document.querySelectorAll(".quickview-thumb-item").forEach(t => t.classList.remove("active"));
+  if (thumbElem) thumbElem.classList.add("active");
+}
+
+function selectVariant(pillElem) {
+  const parent = pillElem.parentElement;
+  parent.querySelectorAll(".variant-pill").forEach(p => p.classList.remove("active"));
+  pillElem.classList.add("active");
+}
+
+function checkProductPincode() {
+  const input = document.getElementById("quickviewPincodeInput");
+  const feedback = document.getElementById("pincodeFeedback");
+  if (!input || !feedback) return;
+  const pin = input.value.trim();
+
+  if (/^\d{6}$/.test(pin)) {
+    AppState.deliveryPincode = pin;
+    saveCartState();
+    feedback.innerHTML = `✓ Fast Delivery to <b>${pin}</b> by <b>Tomorrow</b> | <span style="color: var(--rating-green);">Eligible for FREE Delivery</span>`;
+    showToast(`Pincode ${pin} is serviceable!`, "success");
+  } else {
+    feedback.innerHTML = `<span style="color: var(--discount-red);">Please enter a valid 6-digit postal pincode.</span>`;
+  }
+}
+
+let selectedReviewRating = 5;
+function setReviewRating(stars) {
+  selectedReviewRating = stars;
+  const starElems = document.querySelectorAll("#newReviewStarRating span");
+  starElems.forEach((elem, idx) => {
+    elem.style.color = idx < stars ? "var(--amazon-amber)" : "var(--border-strong)";
+  });
+}
+
+function openWriteReviewBox() {
+  const wrap = document.getElementById("writeReviewFormWrap");
+  if (wrap) wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+}
+
+function submitProductReview(productId) {
+  const title = document.getElementById("newReviewTitle").value.trim();
+  const comment = document.getElementById("newReviewComment").value.trim();
+  if (!comment) {
+    showToast("Please enter review comments", "warning");
+    return;
+  }
+
+  const newReview = {
+    author: "Raghav (You)",
+    rating: selectedReviewRating,
+    date: "Just now",
+    verified: true,
+    title: title || "Great experience",
+    comment: comment
+  };
+
+  const list = document.getElementById("productReviewsList");
+  if (list) {
+    const revHtml = `
+      <div class="review-item-card" style="animation: toastIn 0.3s ease;">
+        <div class="review-author-row">
+          <span class="rating-pill-green">${newReview.rating} ★</span>
+          <span class="review-author-name">${newReview.author}</span>
+          <span class="verified-buyer-tag">✓ Verified Purchase</span>
+          <span style="margin-left: auto; font-size: 11px; color: var(--text-muted);">${newReview.date}</span>
+        </div>
+        <div class="review-title">${escapeHtml(newReview.title)}</div>
+        <div class="review-comment">${escapeHtml(newReview.comment)}</div>
+      </div>
+    `;
+    list.insertAdjacentHTML("afterbegin", revHtml);
+  }
+
+  document.getElementById("writeReviewFormWrap").style.display = "none";
+  showToast("Thank you! Your review has been published.", "success");
+}
+
+/* ==========================================================================
+   SHOPPING CART LOGIC & DRAWER
+   ========================================================================== */
+function addToCart(productId, selectedColor = null, selectedImage = null) {
+  const product = AppState.products.find(p => p.id === productId);
+  if (!product) return;
+
+  if (!selectedColor) {
+    const card = document.getElementById(`productCard-${productId}`);
+    if (card && card.dataset.selectedColor) {
+      selectedColor = card.dataset.selectedColor;
+      selectedImage = card.dataset.selectedImage || product.image;
+    }
+  }
+
+  const finalTitle = selectedColor ? `${product.title} (${selectedColor})` : product.title;
+  const finalImage = selectedImage || product.image;
+
+  const existing = AppState.cart.find(item => item.id === productId && (!selectedColor || item.color === selectedColor));
+  if (existing) {
+    existing.quantity += 1;
+  } else {
+    AppState.cart.push({
+      id: product.id,
+      title: finalTitle,
+      base_title: product.title,
+      color: selectedColor,
+      price: product.price,
+      original_price: product.original_price,
+      image: finalImage,
+      brand: product.brand,
+      quantity: 1
+    });
+  }
+
+  saveCartState();
+  updateProductCardAction(productId);
+  renderCartDrawer();
+  renderRecommendations();
+  showToast(`Added "${finalTitle.slice(0, 30)}..." to Cart!`, "success");
+
+  // Real-time Excel Logging on host PC!
+  try {
+    fetch("/api/track/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customer_name: AppState.user ? AppState.user.name : "Guest Shopper",
+        product_id: product.id,
+        title: product.title,
+        brand: product.brand,
+        quantity: 1,
+        price: product.price,
+        action: "ADDED"
+      })
+    });
+  } catch (err) {
+    console.log("Cart log offline:", err);
+  }
+}
+
+function buyNowDirect(productId) {
+  addToCart(productId);
+  closeQuickViewModal();
+  openCheckoutModal();
+}
+
+function updateCartItemQty(productId, newQty) {
+  if (newQty <= 0) {
+    removeFromCart(productId);
+    return;
+  }
+  const item = AppState.cart.find(i => i.id === productId);
+  if (item) {
+    item.quantity = newQty;
+    saveCartState();
+    updateProductCardAction(productId);
+    renderCartDrawer();
+  }
+}
+
+function removeFromCart(productId) {
+  const item = AppState.cart.find(i => i.id === productId);
+  AppState.cart = AppState.cart.filter(item => item.id !== productId);
+  saveCartState();
+  updateProductCardAction(productId);
+  renderCartDrawer();
+  showToast("Item removed from cart", "info");
+
+  // Real-time Excel Logging of item removal
+  if (item) {
+    try {
+      fetch("/api/track/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: AppState.user ? AppState.user.name : "Guest Shopper",
+          product_id: productId,
+          title: item.title,
+          brand: item.brand,
+          quantity: 0,
+          price: item.price,
+          action: "REMOVED"
+        })
+      });
+    } catch (err) {}
+  }
+}
+
+
+
 function updateProductCardAction(productId) {
   const container = document.getElementById(`cardActions-${productId}`);
   if (!container) return;
