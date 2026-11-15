@@ -14,6 +14,8 @@ TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(__name__, static_folder=STATIC_DIR, template_folder=TEMPLATES_DIR)
 
+SUPPORT_EMAIL = "shopx.customercare@gmail.com"
+
 # Initialize database upon startup
 with app.app_context():
     database.init_db()
@@ -99,7 +101,6 @@ def is_delivery_serviceable_email(email):
     """
     Validate whether standard/express courier delivery & tracking are active for an email.
     Delivery is serviceable for genuine personal & corporate domains (Gmail, Outlook, Yahoo, iCloud, etc.).
-    Disposable, temporary, and test domains are rejected.
     """
     if not email or "@" not in email:
         return False, "Please provide a valid email address for order delivery."
@@ -128,20 +129,34 @@ def api_check_delivery_email():
 
 @app.route("/api/contact", methods=["POST"])
 def api_contact():
+    """Customer care / Help request handler."""
     data = request.get_json() or {}
     name = data.get("name", "").strip()
     email = data.get("email", "").strip()
-    subject = data.get("subject", "").strip() or "General Inquiry"
+    phone = data.get("phone", "").strip()
+    subject = data.get("subject", "").strip() or "Customer Help Request"
     message = data.get("message", "").strip()
     
-    if not name or not email or not message:
-        return jsonify({"success": False, "message": "Name, email, and message are required."}), 400
-    
-    database.save_contact_inquiry(name, email, subject, message)
-    return jsonify({
-        "success": True,
-        "message": f"Thank you {name}! Your message has been sent to our business team at support@shopx.store and escalated to store administration (raghavdeepak664@gmail.com). We will get back to you shortly."
-    })
+    res = database.save_contact_inquiry(name, email, phone, subject, message)
+    status_code = 200 if res.get("success") else 400
+    return jsonify(res), status_code
+
+@app.route("/api/seller/register", methods=["POST"])
+def api_register_seller():
+    """Merchant / Seller application handler."""
+    data = request.get_json() or {}
+    brand_name = data.get("brand_name", "").strip()
+    owner_name = data.get("owner_name", "").strip()
+    email = data.get("email", "").strip()
+    phone = data.get("phone", "").strip()
+    category = data.get("category", "General").strip()
+    city = data.get("city", "").strip()
+    state = data.get("state", "").strip()
+    gstin = data.get("gstin", "").strip()
+
+    res = database.register_seller(brand_name, owner_name, email, phone, category, city, state, gstin)
+    status_code = 200 if res.get("success") else 400
+    return jsonify(res), status_code
 
 @app.route("/api/orders", methods=["POST"])
 def api_create_order():
@@ -184,7 +199,7 @@ def api_add_review(product_id):
     database.add_product_review(product_id, author, rating, title, comment)
     return jsonify({"success": True, "message": "Review submitted successfully!"})
 
-# Authentication & User Tracking Routes
+# Authentication & Password Recovery Routes
 @app.route("/login")
 def login_page():
     return render_template("login.html")
@@ -204,9 +219,6 @@ def api_register():
     ip_addr = request.headers.get("X-Forwarded-For", request.remote_addr)
     user_agent = request.headers.get("User-Agent", "Unknown Browser")
 
-    if not name or not email_phone or not password:
-        return jsonify({"success": False, "message": "Please fill all required fields."}), 400
-
     res = database.register_user(name, email_phone, password, ip_addr, user_agent)
     status_code = 200 if res.get("success") else 400
     resp = make_response(jsonify(res), status_code)
@@ -223,9 +235,6 @@ def api_login():
     ip_addr = request.headers.get("X-Forwarded-For", request.remote_addr)
     user_agent = request.headers.get("User-Agent", "Unknown Browser")
 
-    if not email_phone or not password:
-        return jsonify({"success": False, "message": "Please enter your email/phone and password."}), 400
-
     res = database.login_user(email_phone, password, ip_addr, user_agent)
     status_code = 200 if res.get("success") else 400
     resp = make_response(jsonify(res), status_code)
@@ -233,6 +242,24 @@ def api_login():
         session_info = json.dumps({"name": res.get("name", "Shopper"), "email_phone": res.get("email_phone", email_phone), "isLoggedIn": True})
         resp.set_cookie("shopx_user_session", session_info, max_age=60*60*24*30, path="/", samesite="Lax")
     return resp
+
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def api_forgot_password():
+    data = request.get_json() or {}
+    email_phone = data.get("email_phone", "").strip()
+    res = database.create_password_reset_otp(email_phone)
+    status_code = 200 if res.get("success") else 400
+    return jsonify(res), status_code
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def api_reset_password():
+    data = request.get_json() or {}
+    email_phone = data.get("email_phone", "").strip()
+    otp = data.get("otp", "").strip()
+    new_password = data.get("new_password", "").strip()
+    res = database.verify_otp_and_reset_password(email_phone, otp, new_password)
+    status_code = 200 if res.get("success") else 400
+    return jsonify(res), status_code
 
 # Real-time Cart Tracking Route (Logged to Excel)
 @app.route("/api/track/cart", methods=["POST"])

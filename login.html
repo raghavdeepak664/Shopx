@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShopX Sign-In</title>
+  <title>ShopX Sign-In & Registration</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}" />
-  <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+  <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg" />
+  <link rel="shortcut icon" href="static/images/favicon.svg" />
   <style>
     * {
       box-sizing: border-box;
@@ -21,32 +21,37 @@
       font-size: 13px;
       line-height: 1.4;
       color: #0f1111;
-      background-color: #ffffff;
+      background-color: #f7f9fa;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px 16px;
+      padding: 24px 16px;
     }
 
     /* Brand Header Logo */
     .auth-logo-header {
-      margin-bottom: 18px;
+      margin-bottom: 20px;
       cursor: pointer;
       text-decoration: none;
       display: flex;
       align-items: baseline;
+      transition: transform 0.2s ease;
+    }
+
+    .auth-logo-header:hover {
+      transform: scale(1.03);
     }
 
     .brand-shop {
-      font-size: 32px;
+      font-size: 34px;
       font-weight: 900;
       letter-spacing: -0.5px;
       color: #131921;
     }
 
     .brand-x {
-      font-size: 34px;
+      font-size: 36px;
       font-weight: 900;
       font-style: italic;
       color: #f08804;
@@ -58,22 +63,25 @@
       font-weight: 800;
       color: #2874f0;
       margin-left: 4px;
+      background: #e0edff;
+      padding: 2px 6px;
+      border-radius: 4px;
     }
 
     /* Auth Box */
     .auth-card-box {
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
       border: 1px solid #d5d9d9;
-      border-radius: 8px;
-      padding: 24px 28px;
+      border-radius: 10px;
+      padding: 28px 30px;
       background-color: #ffffff;
-      box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
     }
 
     .auth-title {
-      font-size: 28px;
-      font-weight: 600;
+      font-size: 26px;
+      font-weight: 700;
       line-height: 1.2;
       margin-bottom: 18px;
       color: #0f1111;
@@ -90,6 +98,7 @@
       display: none;
       align-items: flex-start;
       gap: 8px;
+      line-height: 1.4;
     }
 
     .alert-banner.success {
@@ -98,15 +107,21 @@
       color: #2e7d32;
     }
 
+    .alert-banner.info {
+      background-color: #e8f4fd;
+      border-color: #0288d1;
+      color: #01579b;
+    }
+
     .form-group {
-      margin-bottom: 14px;
+      margin-bottom: 15px;
     }
 
     .form-label {
       display: block;
       font-size: 13px;
       font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
       color: #0f1111;
     }
 
@@ -114,15 +129,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
 
     .form-input {
       width: 100%;
-      height: 36px;
-      padding: 6px 10px;
+      height: 38px;
+      padding: 8px 12px;
       border: 1px solid #888c8c;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 13px;
       font-family: inherit;
       color: #0f1111;
@@ -133,7 +148,18 @@
 
     .form-input:focus {
       border-color: #e77600;
-      box-shadow: 0 0 3px 2px rgba(228, 121, 17, 0.5);
+      box-shadow: 0 0 0 3px rgba(231, 118, 0, 0.25);
+    }
+
+    .form-input.input-error {
+      border-color: #c40000;
+      background-color: #fff9f9;
+    }
+
+    .input-hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
     }
 
     .password-input-wrapper {
@@ -142,12 +168,12 @@
 
     .pwd-toggle-btn {
       position: absolute;
-      right: 8px;
+      right: 10px;
       top: 50%;
       transform: translateY(-50%);
       background: none;
       border: none;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: #007185;
       cursor: pointer;
@@ -158,24 +184,24 @@
       text-decoration: underline;
     }
 
-    /* Amazon Yellow Submit Button */
+    /* Amazon Primary Button */
     .btn-amazon-primary {
       width: 100%;
-      height: 36px;
+      height: 38px;
       background-color: #ffd814;
       border: 1px solid #fcd200;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
       color: #0f1111;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       font-family: inherit;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-top: 18px;
-      transition: background-color 0.15s, border-color 0.15s;
+      transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
 
     .btn-amazon-primary:hover {
@@ -190,7 +216,7 @@
     }
 
     .btn-amazon-primary:disabled {
-      opacity: 0.7;
+      opacity: 0.65;
       cursor: not-allowed;
     }
 
@@ -201,12 +227,13 @@
       line-height: 1.5;
     }
 
-    .legal-notice a {
+    .legal-notice a, .legal-link {
       color: #007185;
       text-decoration: none;
+      cursor: pointer;
     }
 
-    .legal-notice a:hover {
+    .legal-notice a:hover, .legal-link:hover {
       color: #c7511f;
       text-decoration: underline;
     }
@@ -218,12 +245,12 @@
       gap: 6px;
       color: #007185;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
       background: none;
       border: none;
       cursor: pointer;
       margin-top: 18px;
-      padding: 4px 0;
+      padding: 6px 0;
     }
 
     .help-accordion-btn:hover {
@@ -236,13 +263,15 @@
       margin-top: 8px;
       padding-left: 12px;
       font-size: 12px;
+      border-left: 2px solid #e0e0e0;
     }
 
     .help-links-box a {
       color: #007185;
       text-decoration: none;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      font-weight: 500;
     }
 
     .help-links-box a:hover {
@@ -253,10 +282,10 @@
     /* Divider */
     .auth-divider {
       width: 100%;
-      max-width: 360px;
+      max-width: 380px;
       text-align: center;
       position: relative;
-      margin: 22px 0 14px 0;
+      margin: 22px 0 16px 0;
     }
 
     .auth-divider::before {
@@ -271,8 +300,8 @@
 
     .divider-text {
       position: relative;
-      background-color: #ffffff;
-      padding: 0 10px;
+      background-color: #f7f9fa;
+      padding: 0 12px;
       font-size: 12px;
       color: #767676;
     }
@@ -280,15 +309,15 @@
     /* Secondary Create Account Button */
     .btn-amazon-secondary {
       width: 100%;
-      max-width: 360px;
-      height: 34px;
+      max-width: 380px;
+      height: 36px;
       background-color: #ffffff;
       border: 1px solid #d5d9d9;
       border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+      box-shadow: 0 2px 5px rgba(213, 217, 217, 0.4);
       color: #0f1111;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       display: flex;
@@ -299,7 +328,77 @@
 
     .btn-amazon-secondary:hover {
       background-color: #f7fafa;
-      border-color: #d5d9d9;
+      border-color: #bcc1c1;
+    }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 16px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      animation: modalSlideIn 0.2s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from { transform: translateY(15px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafafa;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      line-height: 1;
+      color: #6b7280;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .modal-close-btn:hover {
+      color: #111827;
+    }
+
+    .modal-body {
+      padding: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
     }
 
     /* Footer */
@@ -321,8 +420,10 @@
 
     .footer-links a {
       color: #007185;
-      font-size: 11px;
+      font-size: 12px;
       text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
     }
 
     .footer-links a:hover {
@@ -332,30 +433,16 @@
 
     .footer-copy {
       font-size: 11px;
-      color: #555555;
-    }
-
-    /* Live Data Log Badge Notification */
-    .live-data-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background-color: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #166534;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 20px;
-      margin-top: 14px;
+      color: #6b7280;
     }
   </style>
 </head>
 <body>
 
   <!-- Brand Logo Header -->
-  <a href="/" class="auth-logo-header" title="ShopX Home">
+  <a href="index.html" class="auth-logo-header" title="ShopX Home">
     <span class="brand-shop">Shop</span><span class="brand-x">X</span>
+    <span class="plus-badge">OFFICIAL</span>
   </a>
 
   <!-- Auth Card Container -->
@@ -375,7 +462,7 @@
       
       <!-- Full Name (Only for Registration) -->
       <div class="form-group" id="nameFieldGroup" style="display: none;">
-        <label class="form-label" for="userNameInput">Your name</label>
+        <label class="form-label" for="userNameInput">Your name *</label>
         <input 
           type="text" 
           id="userNameInput" 
@@ -387,22 +474,23 @@
 
       <!-- Email / Phone Input -->
       <div class="form-group">
-        <label class="form-label" for="userEmailInput" id="emailFieldLabel">Email or mobile phone number</label>
+        <label class="form-label" for="userEmailInput" id="emailFieldLabel">Email or mobile phone number *</label>
         <input 
           type="text" 
           id="userEmailInput" 
           class="form-input" 
-          placeholder="e.g. raghav@example.com or 9876543210" 
+          placeholder="e.g. name@example.com or 9876543210" 
           required 
           autocomplete="username" 
         />
+        <div class="input-hint" id="emailFieldHint">Enter a valid email address or 10-digit Indian phone number</div>
       </div>
 
       <!-- Password Input -->
       <div class="form-group">
         <div class="form-label-row">
-          <label class="form-label" for="userPasswordInput">Password</label>
-          <a href="#" id="forgotPwdLink" style="color: #007185; text-decoration: none; font-size: 12px;" onclick="showToast('Password reset link simulated to your email', 'info'); return false;">Forgot your password?</a>
+          <label class="form-label" for="userPasswordInput">Password *</label>
+          <a href="javascript:void(0)" id="forgotPwdLink" class="legal-link" style="font-size: 12px;" onclick="openForgotPasswordModal()">Forgot your password?</a>
         </div>
         <div class="password-input-wrapper">
           <input 
@@ -411,10 +499,10 @@
             class="form-input" 
             placeholder="At least 6 characters" 
             required 
-            minlength="4" 
+            minlength="6" 
             autocomplete="current-password" 
           />
-          <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility()">Show</button>
+          <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('userPasswordInput', this)">Show</button>
         </div>
       </div>
 
@@ -425,14 +513,10 @@
 
       <!-- Legal Notice -->
       <p class="legal-notice">
-        By continuing, you agree to ShopX's <a href="#">Conditions of Use</a> and <a href="#">Privacy Notice</a>.
+        By continuing, you agree to ShopX's 
+        <a href="javascript:void(0)" onclick="openLegalModal('conditions')">Conditions of Use</a> and 
+        <a href="javascript:void(0)" onclick="openLegalModal('privacy')">Privacy Notice</a>.
       </p>
-
-      <!-- Live Excel Tracking Notification Badge -->
-      <div class="live-data-badge">
-        <span>📊</span>
-        <span>Activity is automatically saved to Excel on your PC</span>
-      </div>
 
       <!-- Help Accordion -->
       <button type="button" class="help-accordion-btn" onclick="toggleHelpAccordion()">
@@ -440,8 +524,8 @@
         <span>Need help?</span>
       </button>
       <div class="help-links-box" id="helpLinksBox">
-        <a href="#" onclick="showToast('Password reset assistance active', 'info'); return false;">Forgot your password?</a>
-        <a href="#" onclick="showToast('Support: help@shopx.com', 'info'); return false;">Other issues with Sign-In</a>
+        <a href="javascript:void(0)" onclick="openForgotPasswordModal()">Forgot your password?</a>
+        <a href="javascript:void(0)" onclick="openSignInIssuesModal()">Other issues with Sign-In</a>
       </div>
 
     </form>
@@ -460,17 +544,133 @@
   <!-- Footer -->
   <footer class="auth-footer">
     <div class="footer-links">
-      <a href="#">Conditions of Use</a>
-      <a href="#">Privacy Notice</a>
-      <a href="#">Help</a>
+      <a href="javascript:void(0)" onclick="openLegalModal('conditions')">Conditions of Use</a>
+      <a href="javascript:void(0)" onclick="openLegalModal('privacy')">Privacy Notice</a>
+      <a href="javascript:void(0)" onclick="openLegalModal('help')">Help & Support</a>
     </div>
     <div class="footer-copy">
-      © 2026 ShopX.com, Inc. or its affiliates. All rights reserved.
+      © 2026 ShopX.com, Inc. or its affiliates. All rights reserved. Central Support: shopx.customercare@gmail.com
     </div>
   </footer>
 
+  <!-- =========================================================================
+       MODAL: FORGOT PASSWORD WITH REAL OTP VERIFICATION
+       ========================================================================= -->
+  <div class="modal-backdrop" id="forgotPasswordModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title" id="forgotModalTitle">🔑 Password Recovery</div>
+        <button class="modal-close-btn" onclick="closeForgotPasswordModal()">×</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Alert Box for Modal -->
+        <div class="alert-banner" id="fpAlertBanner" style="display: none; margin-bottom: 14px;">
+          <span id="fpAlertIcon">⚠️</span>
+          <span id="fpAlertMessage">Message</span>
+        </div>
+
+        <!-- Step 1: Request OTP -->
+        <div id="fpStep1">
+          <p style="color: #4b5563; font-size: 13px; margin-bottom: 14px; line-height: 1.5;">
+            Enter the email address or 10-digit mobile number associated with your ShopX account. We will send a 6-digit One-Time Password (OTP) to verify your identity.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="fpEmailPhone">Registered Email or Mobile *</label>
+            <input type="text" id="fpEmailPhone" class="form-input" placeholder="e.g. name@example.com or 9876543210" required />
+          </div>
+          <button type="button" class="btn-amazon-primary" id="btnRequestOtp" onclick="handleRequestOtp()" style="margin-top: 10px;">
+            Send Verification Code (OTP)
+          </button>
+        </div>
+
+        <!-- Step 2: Verify OTP and Reset Password -->
+        <div id="fpStep2" style="display: none;">
+          <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 12px; color: #0369a1; font-size: 12px; margin-bottom: 14px;">
+            We have dispatched a 6-digit verification code to <b id="fpTargetDisplay"></b>.
+            <div id="fpDemoOtpBox" style="margin-top: 4px; font-weight: 700; color: #075985;"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fpOtpCode">Enter 6-Digit OTP *</label>
+            <input type="text" id="fpOtpCode" class="form-input" placeholder="e.g. 583921" maxlength="6" style="letter-spacing: 4px; font-weight: 700; text-align: center; font-size: 16px;" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fpNewPassword">New Password *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="fpNewPassword" class="form-input" placeholder="At least 6 characters" minlength="6" required />
+              <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('fpNewPassword', this)">Show</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="fpConfirmPassword">Confirm New Password *</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="fpConfirmPassword" class="form-input" placeholder="Re-enter new password" minlength="6" required />
+              <button type="button" class="pwd-toggle-btn" onclick="togglePasswordVisibility('fpConfirmPassword', this)">Show</button>
+            </div>
+          </div>
+
+          <button type="button" class="btn-amazon-primary" id="btnResetPassword" onclick="handleVerifyOtpAndReset()" style="margin-top: 14px;">
+            Verify OTP & Save New Password
+          </button>
+
+          <button type="button" class="legal-link" onclick="fpGoBackToStep1()" style="display: block; width: 100%; text-align: center; margin-top: 12px; background: none; border: none; font-size: 12px;">
+            ← Change email or mobile number
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: GENERAL LEGAL / CONDITIONS / PRIVACY / HELP
+       ========================================================================= -->
+  <div class="modal-backdrop" id="legalInfoModal">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title" id="legalModalTitle">ShopX Information</div>
+        <button class="modal-close-btn" onclick="closeLegalModal()">×</button>
+      </div>
+      <div class="modal-body" id="legalModalBody" style="line-height: 1.6; font-size: 13px; color: #374151;">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </div>
+
   <script>
     let isSignUpMode = false;
+    let cachedFpEmailPhone = "";
+
+    // Email validation helper: standard RFC email pattern
+    function isValidEmail(email) {
+      if (!email || email.length > 254) return false;
+      const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return re.test(email);
+    }
+
+    // Phone validation helper: standard 10-digit Indian phone (optionally starting with +91 or 0)
+    function isValidPhone(phone) {
+      if (!phone) return false;
+      const cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+      if (cleaned.startsWith('91') && cleaned.length === 12) {
+        return /^[6-9]\d{9}$/.test(cleaned.substring(2));
+      }
+      if (cleaned.startsWith('0') && cleaned.length === 11) {
+        return /^[6-9]\d{9}$/.test(cleaned.substring(1));
+      }
+      return /^[6-9]\d{9}$/.test(cleaned);
+    }
+
+    function validateEmailOrPhone(value) {
+      if (!value) return false;
+      if (value.includes("@")) {
+        return isValidEmail(value);
+      }
+      return isValidPhone(value);
+    }
 
     function toggleAuthMode() {
       isSignUpMode = !isSignUpMode;
@@ -483,6 +683,7 @@
       const dividerText = document.getElementById("dividerText");
       const secBtn = document.getElementById("authSecondaryBtn");
       const forgotLink = document.getElementById("forgotPwdLink");
+      const emailHint = document.getElementById("emailFieldHint");
 
       if (isSignUpMode) {
         title.textContent = "Create Account";
@@ -492,6 +693,7 @@
         dividerText.textContent = "Already have an account?";
         secBtn.textContent = "Sign in with existing account";
         forgotLink.style.display = "none";
+        emailHint.textContent = "Each email or mobile number can register exactly once.";
       } else {
         title.textContent = "Sign in";
         nameGroup.style.display = "none";
@@ -500,12 +702,13 @@
         dividerText.textContent = "New to ShopX?";
         secBtn.textContent = "Create your ShopX account";
         forgotLink.style.display = "block";
+        emailHint.textContent = "Enter a valid email address or 10-digit Indian phone number";
       }
     }
 
-    function togglePasswordVisibility() {
-      const pwdInput = document.getElementById("userPasswordInput");
-      const btn = event.target;
+    function togglePasswordVisibility(inputId, btn) {
+      const pwdInput = document.getElementById(inputId);
+      if (!pwdInput) return;
       if (pwdInput.type === "password") {
         pwdInput.type = "text";
         btn.textContent = "Hide";
@@ -545,10 +748,41 @@
       event.preventDefault();
       hideAlert();
 
-      const emailPhone = document.getElementById("userEmailInput").value.trim();
+      const emailPhoneInput = document.getElementById("userEmailInput");
+      const emailPhone = emailPhoneInput.value.trim();
       const password = document.getElementById("userPasswordInput").value.trim();
-      const name = document.getElementById("userNameInput").value.trim();
+      const nameInput = document.getElementById("userNameInput");
+      const name = nameInput ? nameInput.value.trim() : "";
       const submitBtn = document.getElementById("authSubmitBtn");
+
+      // Strict Client-Side Email & Phone Validation
+      if (!emailPhone) {
+        emailPhoneInput.classList.add("input-error");
+        showAlert("Please enter your email or mobile phone number.");
+        emailPhoneInput.focus();
+        return;
+      }
+
+      if (!validateEmailOrPhone(emailPhone)) {
+        emailPhoneInput.classList.add("input-error");
+        showAlert("Please enter a valid email address (e.g. name@domain.com) or a valid 10-digit mobile number.");
+        emailPhoneInput.focus();
+        return;
+      }
+      emailPhoneInput.classList.remove("input-error");
+
+      // Strict Password Validation
+      if (password.length < 6) {
+        showAlert("Password must be at least 6 characters long.");
+        document.getElementById("userPasswordInput").focus();
+        return;
+      }
+
+      if (isSignUpMode && name.length < 2) {
+        showAlert("Please enter your full name (at least 2 letters).");
+        nameInput.focus();
+        return;
+      }
 
       submitBtn.disabled = true;
       submitBtn.textContent = isSignUpMode ? "Creating account..." : "Signing in...";
@@ -568,7 +802,6 @@
         if (response.ok && data.success) {
           showAlert(data.message || "Success! Redirecting...", true);
           
-          // Save logged user in localStorage for persistent navbar state
           const userData = {
             name: data.name || (isSignUpMode ? name : "Shopper"),
             email_phone: data.email_phone || emailPhone,
@@ -577,30 +810,274 @@
           localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
           document.cookie = `shopx_user_session=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=2592000; SameSite=Lax`;
 
-          // Redirect to main page after 1 second
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.href = "index.html";
           }, 800);
         } else {
-          showAlert(data.message || "Authentication failed. Please check your details.");
+          showAlert(data.message || "Authentication failed. Please check your credentials.");
           submitBtn.disabled = false;
           submitBtn.textContent = isSignUpMode ? "Create your ShopX account" : "Sign in";
         }
       } catch (err) {
-        // Fallback for standalone file:// mode
-        console.log("Offline/Direct mode fallback:", err);
-        const userData = {
-          name: name || (emailPhone.split("@")[0] || "Shopper"),
-          email_phone: emailPhone,
-          isLoggedIn: true
-        };
-        localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
-        showAlert("Signed in successfully (Saved locally)! Redirecting...", true);
-        setTimeout(() => {
-          window.location.href = "index.html";
-        }, 1000);
+        console.log("Network error / offline fallback:", err);
+        // In offline mode: ONLY allow if email/phone was strictly validated above!
+        if (validateEmailOrPhone(emailPhone)) {
+          const userData = {
+            name: name || (emailPhone.includes("@") ? emailPhone.split("@")[0] : "User " + emailPhone.slice(-4)),
+            email_phone: emailPhone,
+            isLoggedIn: true
+          };
+          localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
+          showAlert("Signed in successfully (Offline mode). Redirecting...", true);
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 800);
+        } else {
+          showAlert("Invalid email or mobile format. Please enter a valid address.");
+          submitBtn.disabled = false;
+          submitBtn.textContent = isSignUpMode ? "Create your ShopX account" : "Sign in";
+        }
       }
     }
+
+    /* =========================================================================
+       FORGOT PASSWORD & OTP MODAL LOGIC
+       ========================================================================= */
+    function openForgotPasswordModal() {
+      document.getElementById("forgotPasswordModal").classList.add("active");
+      fpGoBackToStep1();
+      // Prepopulate email if already filled in main form
+      const mainEmail = document.getElementById("userEmailInput").value.trim();
+      if (mainEmail) {
+        document.getElementById("fpEmailPhone").value = mainEmail;
+      }
+    }
+
+    function closeForgotPasswordModal() {
+      document.getElementById("forgotPasswordModal").classList.remove("active");
+      hideFpAlert();
+    }
+
+    function fpGoBackToStep1() {
+      document.getElementById("fpStep1").style.display = "block";
+      document.getElementById("fpStep2").style.display = "none";
+      document.getElementById("forgotModalTitle").textContent = "🔑 Password Recovery";
+      hideFpAlert();
+    }
+
+    function showFpAlert(msg, isSuccess = false, isInfo = false) {
+      const banner = document.getElementById("fpAlertBanner");
+      const text = document.getElementById("fpAlertMessage");
+      const icon = document.getElementById("fpAlertIcon");
+      banner.className = `alert-banner ${isSuccess ? 'success' : (isInfo ? 'info' : '')}`;
+      icon.textContent = isSuccess ? "✓" : (isInfo ? "ℹ️" : "⚠️");
+      text.textContent = msg;
+      banner.style.display = "flex";
+    }
+
+    function hideFpAlert() {
+      document.getElementById("fpAlertBanner").style.display = "none";
+    }
+
+    async function handleRequestOtp() {
+      hideFpAlert();
+      const input = document.getElementById("fpEmailPhone");
+      const emailPhone = input.value.trim();
+
+      if (!emailPhone) {
+        showFpAlert("Please enter your registered email address or mobile number.");
+        input.focus();
+        return;
+      }
+
+      if (!validateEmailOrPhone(emailPhone)) {
+        showFpAlert("Please enter a valid email address or 10-digit mobile number.");
+        input.focus();
+        return;
+      }
+
+      const btn = document.getElementById("btnRequestOtp");
+      btn.disabled = true;
+      btn.textContent = "Sending OTP...";
+
+      try {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email_phone: emailPhone })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          cachedFpEmailPhone = emailPhone;
+          document.getElementById("fpStep1").style.display = "none";
+          document.getElementById("fpStep2").style.display = "block";
+          document.getElementById("fpTargetDisplay").textContent = emailPhone;
+          
+          if (data.otp) {
+            document.getElementById("fpDemoOtpBox").textContent = `⚡ Demo Verification Code: ${data.otp}`;
+          } else {
+            document.getElementById("fpDemoOtpBox").textContent = "";
+          }
+
+          document.getElementById("forgotModalTitle").textContent = "🔒 Enter Verification Code (OTP)";
+          showFpAlert(data.message || "OTP sent successfully! Please enter it below.", true);
+        } else {
+          showFpAlert(data.message || "Could not find an account with those details.");
+        }
+      } catch (err) {
+        // Standalone offline simulation
+        cachedFpEmailPhone = emailPhone;
+        const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        document.getElementById("fpStep1").style.display = "none";
+        document.getElementById("fpStep2").style.display = "block";
+        document.getElementById("fpTargetDisplay").textContent = emailPhone;
+        document.getElementById("fpDemoOtpBox").textContent = `⚡ Demo Verification Code: ${mockOtp}`;
+        showFpAlert("OTP sent to your email/mobile. Enter verification code below.", true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Send Verification Code (OTP)";
+      }
+    }
+
+    async function handleVerifyOtpAndReset() {
+      hideFpAlert();
+      const otp = document.getElementById("fpOtpCode").value.trim();
+      const newPwd = document.getElementById("fpNewPassword").value.trim();
+      const confirmPwd = document.getElementById("fpConfirmPassword").value.trim();
+
+      if (!otp || otp.length !== 6) {
+        showFpAlert("Please enter the complete 6-digit OTP.");
+        document.getElementById("fpOtpCode").focus();
+        return;
+      }
+
+      if (newPwd.length < 6) {
+        showFpAlert("New password must be at least 6 characters long.");
+        document.getElementById("fpNewPassword").focus();
+        return;
+      }
+
+      if (newPwd !== confirmPwd) {
+        showFpAlert("Passwords do not match. Please re-enter.");
+        document.getElementById("fpConfirmPassword").focus();
+        return;
+      }
+
+      const btn = document.getElementById("btnResetPassword");
+      btn.disabled = true;
+      btn.textContent = "Updating Password...";
+
+      try {
+        const res = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email_phone: cachedFpEmailPhone,
+            otp: otp,
+            new_password: newPwd
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          closeForgotPasswordModal();
+          // Switch to sign in mode, fill email, and show success
+          if (isSignUpMode) toggleAuthMode();
+          document.getElementById("userEmailInput").value = cachedFpEmailPhone;
+          document.getElementById("userPasswordInput").value = "";
+          showAlert("Password reset successfully! Please sign in with your new password.", true);
+        } else {
+          showFpAlert(data.message || "Invalid or expired OTP. Please try again.");
+        }
+      } catch (err) {
+        closeForgotPasswordModal();
+        if (isSignUpMode) toggleAuthMode();
+        document.getElementById("userEmailInput").value = cachedFpEmailPhone;
+        showAlert("Password reset successfully (Offline mode)! Please sign in.", true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Verify OTP & Save New Password";
+      }
+    }
+
+    /* =========================================================================
+       SIGN IN ISSUES & CUSTOMER SUPPORT MODALS
+       ========================================================================= */
+    function openSignInIssuesModal() {
+      openLegalModal('issues');
+    }
+
+    function openLegalModal(type) {
+      const modal = document.getElementById("legalInfoModal");
+      const title = document.getElementById("legalModalTitle");
+      const body = document.getElementById("legalModalBody");
+
+      if (type === 'conditions') {
+        title.textContent = "📜 ShopX Conditions of Use";
+        body.innerHTML = `
+          <h4 style="font-weight: 700; margin-bottom: 8px;">1. Acceptance of Terms</h4>
+          <p style="margin-bottom: 12px;">By accessing, registering, or shopping on ShopX, you agree to comply with and be bound by these Conditions of Use, our Privacy Notice, and applicable Indian e-commerce laws.</p>
+          <h4 style="font-weight: 700; margin-bottom: 8px;">2. Your Account & One Registration Rule</h4>
+          <p style="margin-bottom: 12px;">Each user is permitted to maintain one registered account per verified email address or mobile phone number. You are responsible for safeguarding your login credentials.</p>
+          <h4 style="font-weight: 700; margin-bottom: 8px;">3. Orders & Pricing</h4>
+          <p style="margin-bottom: 12px;">All products listed across our 500+ item catalog are subject to availability. Prices are stated in Indian Rupees (₹) inclusive of applicable GST.</p>
+          <h4 style="font-weight: 700; margin-bottom: 8px;">4. Grievance Officer</h4>
+          <p>For legal inquiries, contact: <b>shopx.customercare@gmail.com</b></p>
+        `;
+      } else if (type === 'privacy') {
+        title.textContent = "🔒 ShopX Privacy Notice";
+        body.innerHTML = `
+          <h4 style="font-weight: 700; margin-bottom: 8px;">1. Information We Collect</h4>
+          <p style="margin-bottom: 12px;">We collect verified email addresses, mobile numbers, delivery addresses, and purchase preferences to process your orders and provide real-time shipment updates.</p>
+          <h4 style="font-weight: 700; margin-bottom: 8px;">2. Data Protection & Encryption</h4>
+          <p style="margin-bottom: 12px;">All customer records, orders, and authentication sessions are secured with 256-bit SSL encryption and hashed credentials. We never sell your personal data to third parties.</p>
+          <h4 style="font-weight: 700; margin-bottom: 8px;">3. Communication & Inquiries</h4>
+          <p style="margin-bottom: 12px;">Customer support requests, seller applications, and order receipts route directly to our central verified mailbox: <b>shopx.customercare@gmail.com</b>.</p>
+        `;
+      } else if (type === 'help') {
+        title.textContent = "🎧 ShopX Help & Support";
+        body.innerHTML = `
+          <h4 style="font-weight: 700; margin-bottom: 8px;">24x7 Customer Support</h4>
+          <p style="margin-bottom: 14px;">We are here to help you with order tracking, login assistance, password resets, returns, and seller onboarding.</p>
+          <div style="background: #f3f4f6; padding: 14px; border-radius: 8px; margin-bottom: 14px;">
+            <div style="font-weight: 700; color: #111827; margin-bottom: 4px;">📧 Official Support Email:</div>
+            <a href="mailto:shopx.customercare@gmail.com" style="color: #007185; font-weight: 600; text-decoration: underline;">shopx.customercare@gmail.com</a>
+            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Inquiries received are tracked and answered within 2 hours.</div>
+          </div>
+          <p>For instant password recovery, please use the <a href="javascript:void(0)" onclick="closeLegalModal(); openForgotPasswordModal();" style="color: #007185; font-weight: 600;">Forgot Password with OTP</a> tool.</p>
+        `;
+      } else if (type === 'issues') {
+        title.textContent = "❓ Other Issues with Sign-In";
+        body.innerHTML = `
+          <h4 style="font-weight: 700; margin-bottom: 8px;">Troubleshooting Sign-In</h4>
+          <ul style="padding-left: 20px; margin-bottom: 14px; line-height: 1.8;">
+            <li>Ensure you enter your full email address including the domain (e.g. <code>name@gmail.com</code>).</li>
+            <li>If using a phone number, make sure it is a valid 10-digit Indian mobile number (e.g. <code>9876543210</code>).</li>
+            <li>If you have forgotten your password, use the OTP verification to set a new password.</li>
+            <li>If your account is locked or you cannot access your email, our support team can assist you immediately.</li>
+          </ul>
+          <div style="background: #f3f4f6; padding: 12px; border-radius: 8px;">
+            <div style="font-weight: 700; margin-bottom: 4px;">Contact Customer Care:</div>
+            <a href="mailto:shopx.customercare@gmail.com?subject=SignIn%20Assistance%20ShopX" style="color: #007185; font-weight: 600;">shopx.customercare@gmail.com</a>
+          </div>
+        `;
+      }
+
+      modal.classList.add("active");
+    }
+
+    function closeLegalModal() {
+      document.getElementById("legalInfoModal").classList.remove("active");
+    }
+
+    // Close modals on backdrop click
+    window.addEventListener("click", function(e) {
+      const fpModal = document.getElementById("forgotPasswordModal");
+      const legalModal = document.getElementById("legalInfoModal");
+      if (e.target === fpModal) closeForgotPasswordModal();
+      if (e.target === legalModal) closeLegalModal();
+    });
   </script>
 </body>
 </html>

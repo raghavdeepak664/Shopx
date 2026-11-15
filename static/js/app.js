@@ -13,6 +13,16 @@ const AppState = {
   categories: [],
   brands: [],
   
+  // Pagination & Mobile Crash Prevention
+  pageSize: 24,
+  currentPage: 1,
+
+  // Product Comparison (Up to 4 items)
+  compareList: [],
+
+  // Pending Payment
+  pendingOrderPayload: null,
+  
   // Active Filters & Sorting
   filters: {
     searchQuery: "",
@@ -579,6 +589,7 @@ function applyFiltersAndSort() {
   }
 
   AppState.filteredProducts = list;
+  AppState.currentPage = 1;
   renderActiveFilterChips();
   renderProductsGrid();
 }
@@ -671,14 +682,19 @@ function renderActiveFilterChips() {
 function renderProductsGrid() {
   const countElem = document.getElementById("resultsCountDisplay");
   const gridContainer = document.getElementById("productsGrid");
+  const loadMoreContainer = document.getElementById("loadMoreContainer");
+  const loadedCountNum = document.getElementById("loadedCountNum");
+  const totalCountNum = document.getElementById("totalCountNum");
+  const loadMoreProgressFill = document.getElementById("loadMoreProgressFill");
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
   if (!gridContainer) return;
 
-  const count = AppState.filteredProducts.length;
+  const totalCount = AppState.filteredProducts.length;
   if (countElem) {
-    countElem.innerHTML = `Showing <b>${count}</b> ${count === 1 ? "product" : "products"}`;
+    countElem.innerHTML = `Showing <b>${totalCount}</b> ${totalCount === 1 ? "product" : "products"}`;
   }
 
-  if (count === 0) {
+  if (totalCount === 0) {
     gridContainer.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
         <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
@@ -687,11 +703,16 @@ function renderProductsGrid() {
         <button class="slide-cta-btn" onclick="clearAllFilters()">Reset All Filters</button>
       </div>
     `;
+    if (loadMoreContainer) loadMoreContainer.style.display = "none";
     return;
   }
 
-  gridContainer.innerHTML = AppState.filteredProducts.map(p => {
+  const visibleLimit = AppState.currentPage * AppState.pageSize;
+  const visibleProducts = AppState.filteredProducts.slice(0, visibleLimit);
+
+  gridContainer.innerHTML = visibleProducts.map(p => {
     const isWishlisted = AppState.wishlist.some(w => w.id === p.id);
+    const isCompared = AppState.compareList && AppState.compareList.some(c => c.id === p.id);
     const cartItem = AppState.cart.find(c => c.id === p.id);
     const qty = cartItem ? cartItem.quantity : 0;
 
@@ -704,6 +725,10 @@ function renderProductsGrid() {
 
     return `
       <div class="product-card" id="productCard-${p.id}">
+        <button class="card-compare-btn ${isCompared ? 'active' : ''}" title="Compare Product" onclick="toggleCompare(${p.id}, event)">
+          <span>⚖️</span> ${isCompared ? 'Compared' : 'Compare'}
+        </button>
+
         <button class="wishlist-toggle-btn ${isWishlisted ? "active" : ""}" title="Add to Wishlist" onclick="toggleWishlist(${p.id}, event)">
           <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </button>
@@ -768,400 +793,38 @@ function renderProductsGrid() {
       </div>
     `;
   }).join("");
-}
 
-function renderLoadingState() {
-  const gridContainer = document.getElementById("productsGrid");
-  if (!gridContainer) return;
-  gridContainer.innerHTML = Array(8).fill(0).map(() => `
-    <div class="product-card" style="opacity: 0.6; min-height: 380px;">
-      <div class="product-image-container" style="background-color: var(--border-subtle); animation: pulse 1.5s infinite;"></div>
-      <div class="product-info-box">
-        <div style="height: 14px; width: 40%; background: var(--border-subtle); margin-bottom: 8px; border-radius: 4px;"></div>
-        <div style="height: 18px; width: 90%; background: var(--border-subtle); margin-bottom: 8px; border-radius: 4px;"></div>
-        <div style="height: 18px; width: 60%; background: var(--border-subtle); margin-bottom: 12px; border-radius: 4px;"></div>
-        <div style="height: 24px; width: 50%; background: var(--border-subtle); margin-top: auto; border-radius: 4px;"></div>
-      </div>
-    </div>
-  `).join("");
-}
+  // Update Load More controls
+  if (loadMoreContainer) {
+    if (totalCount > AppState.pageSize) {
+      loadMoreContainer.style.display = "block";
+      if (loadedCountNum) loadedCountNum.textContent = visibleProducts.length;
+      if (totalCountNum) totalCountNum.textContent = totalCount;
+      const progressPercent = Math.min(100, Math.round((visibleProducts.length / totalCount) * 100));
+      if (loadMoreProgressFill) loadMoreProgressFill.style.width = `${progressPercent}%`;
 
-/* ==========================================================================
-   PRODUCT DETAILS & QUICK VIEW MODAL
-   ========================================================================== */
-function openProductQuickView(productId) {
-  const product = AppState.products.find(p => p.id === productId);
-  if (!product) return;
-
-  const modal = document.getElementById("quickViewModal");
-  const content = document.getElementById("quickViewModalContent");
-  if (!modal || !content) return;
-
-  const images = [product.image, ...(product.additional_images || [])];
-  const reviews = (typeof INITIAL_REVIEWS !== "undefined" && INITIAL_REVIEWS[product.id]) ? INITIAL_REVIEWS[product.id] : [
-    { author: "Rohan Khanna", rating: 5, date: "3 days ago", verified: true, title: "Superb product!", comment: "Delivered within 24 hours. Pristine packaging and exactly as described." }
-  ];
-
-  content.innerHTML = `
-    <div class="quickview-layout">
-      <!-- Gallery Column -->
-      <div class="quickview-gallery">
-        <div class="quickview-main-image-wrap">
-          <img id="quickviewMainImg" src="${product.image}" alt="${escapeHtml(product.title)}" class="quickview-main-img" />
-        </div>
-        <div class="quickview-thumbnails-row">
-          ${images.map((img, idx) => `
-            <div class="quickview-thumb-item ${idx === 0 ? "active" : ""}" onclick="switchQuickViewImage('${img}', this)">
-              <img src="${img}" alt="Thumbnail ${idx}" />
-            </div>
-          `).join("")}
-        </div>
-      </div>
-
-      <!-- Details Column -->
-      <div class="quickview-details">
-        <div>
-          <span class="product-brand-tag">${escapeHtml(product.brand)}</span>
-          <h2 class="quickview-title">${escapeHtml(product.title)}</h2>
-        </div>
-
-        <div class="product-card-rating-row">
-          <span class="rating-pill-green">
-            ${product.rating} ★
-          </span>
-          <span class="review-count-text">(${product.reviews_count.toLocaleString()} customer ratings)</span>
-          ${product.is_assured ? `<span class="assured-inline-badge">Shop<b>X</b> <span>Assured</span></span>` : ""}
-        </div>
-
-        <div class="product-price-block" style="margin: 8px 0;">
-          <span class="product-current-price" style="font-size: 26px;">₹${product.price.toLocaleString("en-IN")}</span>
-          <span class="product-original-mrp" style="font-size: 16px;">₹${product.original_price.toLocaleString("en-IN")}</span>
-          <span class="product-discount-percentage" style="font-size: 16px;">${product.discount}% OFF</span>
-        </div>
-
-        <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">${escapeHtml(product.description)}</p>
-
-        <!-- Variants (Colors / Sizes) -->
-        ${(product.colors && product.colors.length > 0) ? `
-          <div style="margin: 10px 0;">
-            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">
-              Select Color: <span id="quickviewSelectedColorName" style="color: #2563eb; font-weight: 800;">${escapeHtml(product.colors[0].name)}</span>
-            </div>
-            <div class="variants-row" style="display: flex; flex-wrap: wrap; gap: 8px;">
-              ${product.colors.map((c, i) => `
-                <div class="quickview-color-chip ${i === 0 ? 'active' : ''}" 
-                     onclick="selectQuickViewColor(${product.id}, '${escapeHtml(c.name)}', '${c.image}', this)">
-                  <span class="quickview-color-dot" style="background-color: ${c.hex || '#333'};"></span>
-                  <span>${escapeHtml(c.name)}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        ` : (product.specs && product.specs.Colors ? `
-          <div style="margin: 10px 0;">
-            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Available Colors:</div>
-            <div class="variants-row">
-              ${product.specs.Colors.map((color, i) => `
-                <div class="variant-pill ${i === 0 ? "active" : ""}" onclick="selectVariant(this)">${color}</div>
-              `).join("")}
-            </div>
-          </div>
-        ` : "")}
-
-        ${product.specs && product.specs["Sizes Available"] ? `
-          <div>
-            <div style="font-size: 12px; font-weight: 700; margin-bottom: 6px;">Select Size:</div>
-            <div class="variants-row">
-              ${product.specs["Sizes Available"].map((sz, i) => `
-                <div class="variant-pill ${i === 0 ? "active" : ""}" onclick="selectVariant(this)">${sz}</div>
-              `).join("")}
-            </div>
-          </div>
-        ` : ""}
-
-        <!-- Pincode Delivery Check -->
-        <div class="pincode-check-card">
-          <div style="font-size: 12px; font-weight: 700;">Check Delivery & Services:</div>
-          <div class="pincode-form-row">
-            <input type="text" id="quickviewPincodeInput" class="pincode-input-box" placeholder="Enter 6 digit pincode" value="${AppState.deliveryPincode}" maxlength="6" />
-            <button class="pincode-check-btn" onclick="checkProductPincode()">Check</button>
-          </div>
-          <div id="pincodeFeedback" class="pincode-feedback-msg">
-            ✓ Delivery by <b>Tomorrow, 11:00 AM</b> | <span style="color: var(--rating-green);">FREE Delivery</span>
-          </div>
-        </div>
-
-        <!-- Specifications Table -->
-        ${product.specs ? `
-          <div>
-            <div style="font-size: 13px; font-weight: 700; margin-bottom: 6px;">Key Highlights:</div>
-            <table class="specs-table">
-              ${Object.entries(product.specs).map(([k, v]) => Array.isArray(v) ? "" : `
-                <tr>
-                  <td>${k}</td>
-                  <td>${v}</td>
-                </tr>
-              `).join("")}
-            </table>
-          </div>
-        ` : ""}
-
-        <!-- Action CTA Buttons -->
-        <div class="quickview-actions-row">
-          <button class="add-to-cart-btn" style="padding: 14px; font-size: 14px;" onclick="addQuickViewToCart(${product.id})">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
-            Add to Cart
-          </button>
-          <button class="btn-buy-now" onclick="buyNowFromQuickView(${product.id})">
-            ⚡ Buy Now
-          </button>
-        </div>
-      </div>
-
-      <!-- Customer Reviews Section -->
-      <div class="customer-reviews-section">
-        <div class="reviews-header">
-          <h3 style="font-size: 16px; font-weight: 800;">Customer Reviews (${reviews.length})</h3>
-          <button class="write-review-btn" onclick="openWriteReviewBox(${product.id})">+ Write a Review</button>
-        </div>
-
-        <!-- Write Review Form Container (Hidden by default) -->
-        <div id="writeReviewFormWrap" style="display: none; background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); margin-bottom: 20px;">
-          <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">Share your experience with this product</h4>
-          <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center;">
-            <span style="font-size: 12px; font-weight: 600;">Your Rating:</span>
-            <div id="newReviewStarRating" style="cursor: pointer; font-size: 20px; color: var(--amazon-amber);">
-              <span onclick="setReviewRating(1)">★</span>
-              <span onclick="setReviewRating(2)">★</span>
-              <span onclick="setReviewRating(3)">★</span>
-              <span onclick="setReviewRating(4)">★</span>
-              <span onclick="setReviewRating(5)">★</span>
-            </div>
-          </div>
-          <input type="text" id="newReviewTitle" class="form-field-group input" placeholder="Review Headline" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
-          <textarea id="newReviewComment" rows="3" placeholder="Write your review comments here..." style="width: 100%; padding: 8px; margin-bottom: 12px; border-radius: 4px; border: 1px solid var(--border-strong); font-family: inherit;"></textarea>
-          <div style="display: flex; gap: 8px; justify-content: flex-end;">
-            <button onclick="document.getElementById('writeReviewFormWrap').style.display='none'" style="padding: 6px 12px; border-radius: 4px; background: var(--border-subtle);">Cancel</button>
-            <button onclick="submitProductReview(${product.id})" style="padding: 6px 16px; border-radius: 4px; background: var(--flipkart-blue); color: #fff; font-weight: 700;">Submit Review</button>
-          </div>
-        </div>
-
-        <div class="reviews-list-container" id="productReviewsList">
-          ${reviews.map(r => `
-            <div class="review-item-card">
-              <div class="review-author-row">
-                <span class="rating-pill-green">${r.rating} ★</span>
-                <span class="review-author-name">${escapeHtml(r.author)}</span>
-                ${r.verified ? `<span class="verified-buyer-tag">✓ Verified Purchase</span>` : ""}
-                <span style="margin-left: auto; font-size: 11px; color: var(--text-muted);">${r.date}</span>
-              </div>
-              <div class="review-title">${escapeHtml(r.title)}</div>
-              <div class="review-comment">${escapeHtml(r.comment)}</div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    </div>
-  `;
-
-  modal.classList.add("active");
-  document.body.style.overflow = "hidden";
-}
-
-function closeQuickViewModal() {
-  const modal = document.getElementById("quickViewModal");
-  if (modal) modal.classList.remove("active");
-  document.body.style.overflow = "";
-}
-
-function switchQuickViewImage(imgSrc, thumbElem) {
-  const mainImg = document.getElementById("quickviewMainImg");
-  if (mainImg) mainImg.src = imgSrc;
-  document.querySelectorAll(".quickview-thumb-item").forEach(t => t.classList.remove("active"));
-  if (thumbElem) thumbElem.classList.add("active");
-}
-
-function selectVariant(pillElem) {
-  const parent = pillElem.parentElement;
-  parent.querySelectorAll(".variant-pill").forEach(p => p.classList.remove("active"));
-  pillElem.classList.add("active");
-}
-
-function checkProductPincode() {
-  const input = document.getElementById("quickviewPincodeInput");
-  const feedback = document.getElementById("pincodeFeedback");
-  if (!input || !feedback) return;
-  const pin = input.value.trim();
-
-  if (/^\d{6}$/.test(pin)) {
-    AppState.deliveryPincode = pin;
-    saveCartState();
-    feedback.innerHTML = `✓ Fast Delivery to <b>${pin}</b> by <b>Tomorrow</b> | <span style="color: var(--rating-green);">Eligible for FREE Delivery</span>`;
-    showToast(`Pincode ${pin} is serviceable!`, "success");
-  } else {
-    feedback.innerHTML = `<span style="color: var(--discount-red);">Please enter a valid 6-digit postal pincode.</span>`;
-  }
-}
-
-let selectedReviewRating = 5;
-function setReviewRating(stars) {
-  selectedReviewRating = stars;
-  const starElems = document.querySelectorAll("#newReviewStarRating span");
-  starElems.forEach((elem, idx) => {
-    elem.style.color = idx < stars ? "var(--amazon-amber)" : "var(--border-strong)";
-  });
-}
-
-function openWriteReviewBox() {
-  const wrap = document.getElementById("writeReviewFormWrap");
-  if (wrap) wrap.style.display = wrap.style.display === "none" ? "block" : "none";
-}
-
-function submitProductReview(productId) {
-  const title = document.getElementById("newReviewTitle").value.trim();
-  const comment = document.getElementById("newReviewComment").value.trim();
-  if (!comment) {
-    showToast("Please enter review comments", "warning");
-    return;
-  }
-
-  const newReview = {
-    author: "Raghav (You)",
-    rating: selectedReviewRating,
-    date: "Just now",
-    verified: true,
-    title: title || "Great experience",
-    comment: comment
-  };
-
-  const list = document.getElementById("productReviewsList");
-  if (list) {
-    const revHtml = `
-      <div class="review-item-card" style="animation: toastIn 0.3s ease;">
-        <div class="review-author-row">
-          <span class="rating-pill-green">${newReview.rating} ★</span>
-          <span class="review-author-name">${newReview.author}</span>
-          <span class="verified-buyer-tag">✓ Verified Purchase</span>
-          <span style="margin-left: auto; font-size: 11px; color: var(--text-muted);">${newReview.date}</span>
-        </div>
-        <div class="review-title">${escapeHtml(newReview.title)}</div>
-        <div class="review-comment">${escapeHtml(newReview.comment)}</div>
-      </div>
-    `;
-    list.insertAdjacentHTML("afterbegin", revHtml);
-  }
-
-  document.getElementById("writeReviewFormWrap").style.display = "none";
-  showToast("Thank you! Your review has been published.", "success");
-}
-
-/* ==========================================================================
-   SHOPPING CART LOGIC & DRAWER
-   ========================================================================== */
-function addToCart(productId, selectedColor = null, selectedImage = null) {
-  const product = AppState.products.find(p => p.id === productId);
-  if (!product) return;
-
-  if (!selectedColor) {
-    const card = document.getElementById(`productCard-${productId}`);
-    if (card && card.dataset.selectedColor) {
-      selectedColor = card.dataset.selectedColor;
-      selectedImage = card.dataset.selectedImage || product.image;
+      if (visibleProducts.length >= totalCount) {
+        if (loadMoreBtn) {
+          loadMoreBtn.disabled = true;
+          loadMoreBtn.innerHTML = `<span>✓ All ${totalCount} Products Loaded</span>`;
+          loadMoreBtn.style.opacity = "0.7";
+        }
+      } else {
+        if (loadMoreBtn) {
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = `<span>Load More Products (${totalCount - visibleProducts.length} remaining)</span> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+          loadMoreBtn.style.opacity = "1";
+        }
+      }
+    } else {
+      loadMoreContainer.style.display = "none";
     }
   }
-
-  const finalTitle = selectedColor ? `${product.title} (${selectedColor})` : product.title;
-  const finalImage = selectedImage || product.image;
-
-  const existing = AppState.cart.find(item => item.id === productId && (!selectedColor || item.color === selectedColor));
-  if (existing) {
-    existing.quantity += 1;
-  } else {
-    AppState.cart.push({
-      id: product.id,
-      title: finalTitle,
-      base_title: product.title,
-      color: selectedColor,
-      price: product.price,
-      original_price: product.original_price,
-      image: finalImage,
-      brand: product.brand,
-      quantity: 1
-    });
-  }
-
-  saveCartState();
-  updateProductCardAction(productId);
-  renderCartDrawer();
-  renderRecommendations();
-  showToast(`Added "${finalTitle.slice(0, 30)}..." to Cart!`, "success");
-
-  // Real-time Excel Logging on host PC!
-  try {
-    fetch("/api/track/cart", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer_name: AppState.user ? AppState.user.name : "Guest Shopper",
-        product_id: product.id,
-        title: product.title,
-        brand: product.brand,
-        quantity: 1,
-        price: product.price,
-        action: "ADDED"
-      })
-    });
-  } catch (err) {
-    console.log("Cart log offline:", err);
-  }
 }
 
-function buyNowDirect(productId) {
-  addToCart(productId);
-  closeQuickViewModal();
-  openCheckoutModal();
-}
-
-function updateCartItemQty(productId, newQty) {
-  if (newQty <= 0) {
-    removeFromCart(productId);
-    return;
-  }
-  const item = AppState.cart.find(i => i.id === productId);
-  if (item) {
-    item.quantity = newQty;
-    saveCartState();
-    updateProductCardAction(productId);
-    renderCartDrawer();
-  }
-}
-
-function removeFromCart(productId) {
-  const item = AppState.cart.find(i => i.id === productId);
-  AppState.cart = AppState.cart.filter(item => item.id !== productId);
-  saveCartState();
-  updateProductCardAction(productId);
-  renderCartDrawer();
-  showToast("Item removed from cart", "info");
-
-  // Real-time Excel Logging of item removal
-  if (item) {
-    try {
-      fetch("/api/track/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: AppState.user ? AppState.user.name : "Guest Shopper",
-          product_id: productId,
-          title: item.title,
-          brand: item.brand,
-          quantity: 0,
-          price: item.price,
-          action: "REMOVED"
-        })
-      });
-    } catch (err) {}
-  }
+function loadMoreProducts() {
+  AppState.currentPage++;
+  renderProductsGrid();
 }
 
 function updateProductCardAction(productId) {
@@ -1569,17 +1232,19 @@ function selectPaymentMethod(method, cardElem) {
 }
 
 async function processPlaceOrder() {
-  const btn = document.getElementById("placeOrderFinalBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<span style="display: inline-block; animation: spin 1s infinite linear;">⏳</span> Processing Order...`;
-  }
-
   const subtotal = AppState.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
   const total = Math.max(0, subtotal - (AppState.activeCoupon ? 100 : 0));
 
+  // Open the Realistic Payment Gateway Modal
+  openPaymentGatewayModal(total);
+}
+
+async function finalizeOrderPlacement(paymentMethod = "UPI") {
+  const subtotal = AppState.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+  const total = Math.max(0, subtotal - (AppState.activeCoupon ? 100 : 0));
   const customerName = AppState.user ? AppState.user.name : (checkoutFormData.name || "Customer");
   const customerPhone = AppState.user ? AppState.user.email_phone : (checkoutFormData.phone || "9876543210");
+  const customerEmail = checkoutFormData.email || (AppState.user ? AppState.user.email_phone : "customer@shopx.store");
 
   const orderPayload = {
     ...checkoutFormData,
@@ -1587,6 +1252,8 @@ async function processPlaceOrder() {
     phone: customerPhone,
     customer_name: customerName,
     customer_phone: customerPhone,
+    email: customerEmail,
+    paymentMethod: paymentMethod,
     items: [...AppState.cart],
     subtotal: subtotal,
     discount: AppState.activeCoupon ? 100 : 0,
@@ -1618,7 +1285,8 @@ async function processPlaceOrder() {
       created_at: new Date().toLocaleString(),
       status: "Order Confirmed",
       expected_delivery: "Within 2 Days",
-      total: total
+      total: total,
+      paymentMethod: paymentMethod
     };
   }
 
@@ -2561,7 +2229,7 @@ function isDeliveryEmailServiceable(email) {
   }
   return {
     serviceable: true,
-    message: `Delivery Serviceable: Order dispatch, SMS tracking, and invoices are active for ${domain}. Updates will route to your email and store administration (support@shopx.store & raghavdeepak664@gmail.com).`
+    message: `Delivery Serviceable: Order dispatch, SMS tracking, and invoices are active for ${domain}. Updates will route to your email and store administration (shopx.customercare@gmail.com & shopx.customercare@gmail.com).`
   };
 }
 
@@ -2678,7 +2346,7 @@ function openCareersModal() {
       </div>
     </div>
     <p style="font-size: 12px; color: var(--text-muted);">
-      Send your portfolio and CV to our talent team at <b>careers@shopx.store</b> (monitored by raghavdeepak664@gmail.com).
+      Send your portfolio and CV to our talent team at <b>shopx.customercare@gmail.com</b> (monitored by shopx.customercare@gmail.com).
     </p>
     `
   );
@@ -2758,64 +2426,6 @@ function openStoriesModal() {
     </div>
     `
   );
-}
-
-function openSellerModal() {
-  openInfoModal(
-    "💼 Sell on ShopX",
-    "Grow your business with India's fastest growing marketplace",
-    `
-    <p style="margin-bottom: 16px;">Join thousands of successful sellers. Enjoy <b>0% commission for your first 30 days</b>, automatic fulfillment, and instant payouts.</p>
-    <div style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 16px;">
-      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">Merchant Registration Request</h4>
-      <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div class="form-field-group">
-          <label>Business / Brand Name</label>
-          <input type="text" id="sellerBrandName" placeholder="Acme Retail" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
-        </div>
-        <div class="form-field-group">
-          <label>GSTIN / Tax ID</label>
-          <input type="text" id="sellerGstin" placeholder="22AAAAA0000A1Z5" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
-        </div>
-        <div class="form-field-group">
-          <label>Contact Email</label>
-          <input type="email" id="sellerEmail" placeholder="partner@brand.com" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
-        </div>
-        <div class="form-field-group">
-          <label>Phone Number</label>
-          <input type="tel" id="sellerPhone" placeholder="10-digit mobile" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
-        </div>
-      </div>
-      <button class="slide-cta-btn" style="margin-top: 14px; width: 100%; justify-content: center;" onclick="submitSellerApplication()">Submit Merchant Application</button>
-    </div>
-    <div style="font-size: 12px; color: var(--text-muted);">Our seller onboarding team (support@shopx.store) reviews all applications within 1 business day.</div>
-    `
-  );
-}
-
-function submitSellerApplication() {
-  const brand = document.getElementById("sellerBrandName") ? document.getElementById("sellerBrandName").value.trim() : "";
-  const email = document.getElementById("sellerEmail") ? document.getElementById("sellerEmail").value.trim() : "";
-  if (!brand || !email) {
-    showToast("Please enter your Brand Name and Email", "warning");
-    return;
-  }
-  fetch("/api/contact", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: brand,
-      email: email,
-      subject: "Seller Onboarding Application",
-      message: `New seller application for brand: ${brand}. Contact email: ${email}`
-    })
-  }).then(() => {
-    closeInfoModal();
-    showToast("Application submitted! Our Merchant Team will contact you shortly.", "success");
-  }).catch(() => {
-    closeInfoModal();
-    showToast("Application submitted successfully!", "success");
-  });
 }
 
 function openAffiliateModal() {
@@ -2900,6 +2510,522 @@ function openAppDownloadModal() {
   );
 }
 
+function openSocialModal(platform) {
+  openInfoModal(
+    `🌐 Connect on ${platform}`,
+    `Join our official community of over 500,000+ shoppers`,
+    `
+    <p style="margin-bottom: 14px;">Follow <b>@ShopXOfficial</b> on ${platform} for exclusive discount drops, flash sales, tech unboxings, and giveaways.</p>
+    <div style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <div style="font-weight: 700; font-size: 14px;">ShopX Official Channel</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Verified Community & Updates</div>
+      </div>
+      <a href="https://${platform.toLowerCase().replace(/[^a-z]/g, '')}.com" target="_blank" rel="noopener noreferrer" class="slide-cta-btn" style="text-decoration: none; padding: 8px 16px;">
+        Follow on ${platform}
+      </a>
+    </div>
+    `
+  );
+}
+
+// Global Alias
+window.openQuickViewModal = openProductQuickView;
+
+
+/* ==========================================================================
+   PRODUCT COMPARISON FEATURE (2 to 4 Products)
+   ========================================================================== */
+function toggleCompare(productId, event) {
+  if (event) event.stopPropagation();
+  const prod = AppState.products.find(p => p.id === productId);
+  if (!prod) return;
+
+  if (!AppState.compareList) AppState.compareList = [];
+
+  const existingIdx = AppState.compareList.findIndex(p => p.id === productId);
+  if (existingIdx > -1) {
+    AppState.compareList.splice(existingIdx, 1);
+    showToast(`Removed "${prod.title.slice(0, 20)}..." from comparison`, "info");
+  } else {
+    if (AppState.compareList.length >= 4) {
+      showToast("You can compare up to 4 products at a time.", "warning");
+      return;
+    }
+    AppState.compareList.push(prod);
+    showToast(`Added "${prod.title.slice(0, 20)}..." to comparison`, "success");
+  }
+
+  updateCompareDock();
+  renderProductsGrid();
+}
+
+function updateCompareDock() {
+  const dock = document.getElementById("compareDockBar");
+  const thumbsContainer = document.getElementById("compareThumbnailsList");
+  const badge = document.getElementById("compareCountBadge");
+  const submitBtn = document.getElementById("compareSubmitBtn");
+  if (!dock) return;
+
+  const count = (AppState.compareList || []).length;
+  if (count > 0) {
+    dock.classList.add("active");
+    if (badge) badge.textContent = `${count}/4`;
+    if (submitBtn) {
+      submitBtn.disabled = count < 2;
+      submitBtn.textContent = `Compare (${count})`;
+    }
+    if (thumbsContainer) {
+      thumbsContainer.innerHTML = AppState.compareList.map(p => `
+        <div class="compare-thumb-item" title="${escapeHtml(p.title)}">
+          <img src="${p.image}" alt="" />
+          <button class="compare-thumb-remove" onclick="toggleCompare(${p.id}, event)" title="Remove">×</button>
+        </div>
+      `).join("");
+    }
+  } else {
+    dock.classList.remove("active");
+  }
+}
+
+function clearComparison() {
+  AppState.compareList = [];
+  updateCompareDock();
+  renderProductsGrid();
+  showToast("Comparison cleared", "info");
+}
+
+function closeCompareModal() {
+  const modal = document.getElementById("compareModal");
+  if (modal) modal.classList.remove("active");
+  document.body.style.overflow = "";
+}
+
+function openCompareModal() {
+  if (!AppState.compareList || AppState.compareList.length < 2) {
+    showToast("Please select at least 2 products to compare.", "warning");
+    return;
+  }
+
+  const modal = document.getElementById("compareModal");
+  const body = document.getElementById("compareModalBody");
+  if (!modal || !body) return;
+
+  const specKeysSet = new Set();
+  AppState.compareList.forEach(p => {
+    if (p.specs && typeof p.specs === "object") {
+      Object.keys(p.specs).forEach(k => specKeysSet.add(k));
+    }
+  });
+  const specKeys = Array.from(specKeysSet);
+
+  body.innerHTML = `
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Attribute</th>
+          ${AppState.compareList.map(p => `
+            <td class="compare-card-col">
+              <img src="${p.image}" alt="${escapeHtml(p.title)}" />
+              <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; line-height: 1.3;">${escapeHtml(p.title)}</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">${escapeHtml(p.brand)}</div>
+              <button class="slide-cta-btn" style="width: 100%; justify-content: center; font-size: 12px; padding: 6px 12px;" onclick="addToCart(${p.id}); closeCompareModal();">
+                Add to Cart
+              </button>
+            </td>
+          `).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>Price & Discount</th>
+          ${AppState.compareList.map(p => `
+            <td style="text-align: center;">
+              <div style="font-size: 16px; font-weight: 800; color: #166534;">₹${p.price.toLocaleString("en-IN")}</div>
+              <div style="font-size: 11px; color: var(--text-muted); text-decoration: line-through;">₹${p.original_price.toLocaleString("en-IN")}</div>
+              <div style="font-size: 11px; font-weight: 700; color: #c2410c;">${p.discount}% OFF</div>
+            </td>
+          `).join("")}
+        </tr>
+        <tr>
+          <th>Rating & Reviews</th>
+          ${AppState.compareList.map(p => `
+            <td style="text-align: center;">
+              <span class="rating-pill-green" style="display: inline-flex; margin-bottom: 4px;">
+                ${p.rating} ★
+              </span>
+              <div style="font-size: 12px; color: var(--text-muted);">${(p.reviews_count || 0).toLocaleString()} Reviews</div>
+            </td>
+          `).join("")}
+        </tr>
+        <tr>
+          <th>Category</th>
+          ${AppState.compareList.map(p => `
+            <td style="text-align: center; font-weight: 600;">${escapeHtml(p.category)}</td>
+          `).join("")}
+        </tr>
+        <tr>
+          <th>Colors</th>
+          ${AppState.compareList.map(p => `
+            <td style="text-align: center;">
+              ${(p.colors && p.colors.length) ? `
+                <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+                  ${p.colors.map(c => `<span style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: ${c.hex || '#333'}; border: 1px solid #ccc;" title="${escapeHtml(c.name)}"></span>`).join("")}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${p.colors.map(c => c.name).join(", ")}</div>
+              ` : '<span style="color: var(--text-muted);">Standard</span>'}
+            </td>
+          `).join("")}
+        </tr>
+        <tr>
+          <th>Delivery Status</th>
+          ${AppState.compareList.map(p => `
+            <td style="text-align: center; font-size: 12px;">
+              <div style="color: #059669; font-weight: 700;">🚚 In Stock</div>
+              <div style="color: var(--text-muted);">Get it Tomorrow</div>
+            </td>
+          `).join("")}
+        </tr>
+        ${specKeys.map(key => `
+          <tr>
+            <th>${escapeHtml(key)}</th>
+            ${AppState.compareList.map(p => `
+              <td style="text-align: center; font-size: 12px;">
+                ${(p.specs && p.specs[key]) ? escapeHtml(p.specs[key]) : '<span style="color: var(--text-muted);">-</span>'}
+              </td>
+            `).join("")}
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  modal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+/* ==========================================================================
+   REALISTIC MOCK PAYMENT GATEWAY (UPI QR, Card 3D-Secure, NetBanking, COD)
+   ========================================================================== */
+let pgQrTimerInterval = null;
+let pgQrSecondsRemaining = 299;
+
+function openPaymentGatewayModal(amount) {
+  const modal = document.getElementById("paymentGatewayModal");
+  if (!modal) return;
+
+  const payableDisplay = document.getElementById("pgPayableAmountDisplay");
+  const cardPayAmount = document.getElementById("pgCardPayBtnAmount");
+  const formattedAmount = `₹${Math.round(amount).toLocaleString("en-IN")}`;
+  if (payableDisplay) payableDisplay.textContent = formattedAmount;
+  if (cardPayAmount) cardPayAmount.textContent = formattedAmount;
+
+  const defaultTab = (checkoutFormData.paymentMethod || "UPI").toLowerCase();
+  switchPgTab(defaultTab === "card" ? "card" : (defaultTab === "netbanking" ? "netbanking" : (defaultTab === "cod" ? "cod" : "upi")));
+
+  startPgQrTimer();
+  generateCodCaptcha();
+
+  modal.classList.add("active");
+  document.body.style.overflow = "hidden";
+}
+
+function closePaymentGatewayModal() {
+  const modal = document.getElementById("paymentGatewayModal");
+  if (modal) modal.classList.remove("active");
+  if (pgQrTimerInterval) clearInterval(pgQrTimerInterval);
+  document.body.style.overflow = "";
+}
+
+function switchPgTab(tabName) {
+  document.querySelectorAll(".pg-tab-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
+  });
+  document.querySelectorAll(".pg-pane").forEach(pane => {
+    pane.classList.toggle("active", pane.id === `pgPane-${tabName}`);
+  });
+}
+
+function startPgQrTimer() {
+  if (pgQrTimerInterval) clearInterval(pgQrTimerInterval);
+  pgQrSecondsRemaining = 299;
+  updatePgQrTimerDisplay();
+
+  pgQrTimerInterval = setInterval(() => {
+    pgQrSecondsRemaining--;
+    if (pgQrSecondsRemaining <= 0) {
+      clearInterval(pgQrTimerInterval);
+      const timerElem = document.getElementById("pgQrTimer");
+      if (timerElem) timerElem.textContent = "Expired. Refreshing QR...";
+      setTimeout(startPgQrTimer, 1500);
+    } else {
+      updatePgQrTimerDisplay();
+    }
+  }, 1000);
+}
+
+function updatePgQrTimerDisplay() {
+  const timerElem = document.getElementById("pgQrTimer");
+  if (!timerElem) return;
+  const m = Math.floor(pgQrSecondsRemaining / 60);
+  const s = pgQrSecondsRemaining % 60;
+  timerElem.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function formatCardNumber(input) {
+  let val = input.value.replace(/\D/g, "").substring(0, 16);
+  let formatted = val.match(/.{1,4}/g)?.join(" ") || val;
+  input.value = formatted;
+
+  const preview = document.getElementById("cardPreviewNum");
+  if (preview) preview.textContent = formatted || "•••• •••• •••• ••••";
+
+  const brandPreview = document.getElementById("cardPreviewBrand");
+  if (brandPreview) {
+    if (val.startsWith("4")) brandPreview.textContent = "VISA";
+    else if (/^5[1-5]/.test(val)) brandPreview.textContent = "MasterCard";
+    else if (/^(60|65|81|82)/.test(val)) brandPreview.textContent = "RuPay";
+    else if (/^3[47]/.test(val)) brandPreview.textContent = "AMEX";
+    else brandPreview.textContent = "RuPay";
+  }
+}
+
+function updateCardName(val) {
+  const preview = document.getElementById("cardPreviewName");
+  if (preview) preview.textContent = (val || "YOUR NAME").toUpperCase();
+}
+
+function formatCardExp(input) {
+  let val = input.value.replace(/\D/g, "").substring(0, 4);
+  if (val.length >= 3) {
+    val = val.substring(0, 2) + "/" + val.substring(2, 4);
+  }
+  input.value = val;
+  const preview = document.getElementById("cardPreviewExp");
+  if (preview) preview.textContent = val || "MM/YY";
+}
+
+function trigger3DSecureOtp() {
+  const cardNum = (document.getElementById("pgCardNumber")?.value || "").replace(/\s/g, "");
+  const cardExp = document.getElementById("pgCardExp")?.value || "";
+  const cardCvv = document.getElementById("pgCardCvv")?.value || "";
+
+  if (cardNum.length < 15) {
+    showToast("Please enter a valid 16-digit card number", "warning");
+    return;
+  }
+  if (cardExp.length < 5) {
+    showToast("Please enter a valid expiry date (MM/YY)", "warning");
+    return;
+  }
+  if (cardCvv.length < 3) {
+    showToast("Please enter a valid 3 or 4 digit CVV", "warning");
+    return;
+  }
+
+  const subtotal = AppState.cart.reduce((s, i) => s + (i.price * i.quantity), 0);
+  const total = Math.max(0, subtotal - (AppState.activeCoupon ? 100 : 0));
+  const otpAmt = document.getElementById("otpAmountDisplay");
+  if (otpAmt) otpAmt.textContent = `₹${Math.round(total).toLocaleString("en-IN")}`;
+
+  const otpDialog = document.getElementById("pgOtpDialog");
+  if (otpDialog) otpDialog.classList.add("active");
+}
+
+function cancel3DSecureOtp() {
+  const otpDialog = document.getElementById("pgOtpDialog");
+  if (otpDialog) otpDialog.classList.remove("active");
+}
+
+function submit3DSecureOtp() {
+  const otpVal = document.getElementById("pgBankOtpInput")?.value.trim();
+  if (!otpVal || otpVal.length < 6) {
+    showToast("Please enter the complete 6-digit OTP", "warning");
+    return;
+  }
+  cancel3DSecureOtp();
+  executeMockPayment("Card");
+}
+
+function selectBank(btn, bankName) {
+  document.querySelectorAll(".pg-bank-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const select = document.getElementById("pgAllBanksSelect");
+  if (select) select.value = "";
+}
+
+function generateCodCaptcha() {
+  const code = Math.floor(1000 + Math.random() * 9000).toString();
+  const elem = document.getElementById("pgCodCaptchaCode");
+  if (elem) elem.textContent = code;
+}
+
+function verifyAndConfirmCod() {
+  const entered = document.getElementById("pgCodCaptchaInput")?.value.trim();
+  const code = document.getElementById("pgCodCaptchaCode")?.textContent.trim();
+  if (entered !== code) {
+    showToast("Invalid security code. Please enter the numbers shown.", "error");
+    generateCodCaptcha();
+    return;
+  }
+  executeMockPayment("COD");
+}
+
+function executeMockPayment(method) {
+  const overlay = document.getElementById("pgProcessingOverlay");
+  const title = document.getElementById("pgProcessingTitle");
+  const desc = document.getElementById("pgProcessingDesc");
+  if (!overlay) return;
+
+  overlay.classList.add("active");
+  if (title) title.textContent = `Connecting to ${method} Gateway...`;
+  if (desc) desc.textContent = "Secure 256-Bit SSL Handshake in progress...";
+
+  setTimeout(() => {
+    if (title) title.textContent = "Verifying Authorization Token...";
+    if (desc) desc.textContent = "Issuing bank authorization code received...";
+  }, 900);
+
+  setTimeout(() => {
+    if (title) title.textContent = "Payment Approved! Generating Order...";
+    if (desc) desc.textContent = "Finalizing tax invoice & seller dispatch...";
+  }, 1800);
+
+  setTimeout(async () => {
+    overlay.classList.remove("active");
+    closePaymentGatewayModal();
+    closeCheckoutModal();
+    await finalizeOrderPlacement(method);
+  }, 2600);
+}
+
+/* ==========================================================================
+   SELL ON SHOPX (EXCEL & EMAIL UPDATES)
+   ========================================================================== */
+function openSellerModal() {
+  openInfoModal(
+    "💼 Sell on ShopX - Merchant Onboarding",
+    "Join over 50,000+ top Indian brands and manufacturers on ShopX",
+    `
+    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+      <div style="font-weight: 700; color: #1e40af; margin-bottom: 4px;">🚀 Launch Your Brand with Zero Commission</div>
+      <p style="font-size: 12px; color: #1e3a8a;">Enjoy <b>0% commission for your first 30 days</b>, automated courier pick-up, instant 24-hour payouts, and a customer base of millions nationwide.</p>
+    </div>
+
+    <form onsubmit="submitSellerApplication(event)">
+      <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+        <div class="form-field-group">
+          <label>Brand / Business Name *</label>
+          <input type="text" id="sellerBrandName" required placeholder="e.g. Acme Innovations" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Owner / Contact Person *</label>
+          <input type="text" id="sellerOwnerName" required placeholder="e.g. Rahul Verma" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Business Email *</label>
+          <input type="email" id="sellerEmail" required placeholder="partner@brand.com" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Mobile Number (10 Digits) *</label>
+          <input type="tel" id="sellerPhone" required placeholder="e.g. 9876543210" maxlength="10" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Primary Product Category *</label>
+          <select id="sellerCategory" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--bg-surface); color: var(--text-main);">
+            <option value="Electronics & Audio">Electronics & Audio</option>
+            <option value="Mobiles & Accessories">Mobiles & Accessories</option>
+            <option value="Home & Kitchen">Home & Kitchen</option>
+            <option value="Fashion & Apparel">Fashion & Apparel</option>
+            <option value="Footwear & Sneakers">Footwear & Sneakers</option>
+            <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+            <option value="Books & Stationery">Books & Stationery</option>
+          </select>
+        </div>
+        <div class="form-field-group">
+          <label>GSTIN / Tax ID</label>
+          <input type="text" id="sellerGstin" placeholder="e.g. 07AAAAA0000A1Z5" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Operating City *</label>
+          <input type="text" id="sellerCity" required placeholder="e.g. New Delhi" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+        <div class="form-field-group">
+          <label>Operating State *</label>
+          <input type="text" id="sellerState" required placeholder="e.g. Delhi" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        </div>
+      </div>
+      <button type="submit" class="slide-cta-btn" id="sellerSubmitBtn" style="margin-top: 14px; width: 100%; justify-content: center;">
+        Submit Merchant Application
+      </button>
+    </form>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 12px; text-align: center;">
+      Our onboarding desk at <b>shopx.customercare@gmail.com</b> reviews all applications within 1 business day.
+    </div>
+    `
+  );
+}
+
+async function submitSellerApplication(event) {
+  if (event) event.preventDefault();
+  const brand = document.getElementById("sellerBrandName")?.value.trim();
+  const owner = document.getElementById("sellerOwnerName")?.value.trim();
+  const email = document.getElementById("sellerEmail")?.value.trim();
+  const phone = document.getElementById("sellerPhone")?.value.trim();
+  const category = document.getElementById("sellerCategory")?.value.trim();
+  const city = document.getElementById("sellerCity")?.value.trim();
+  const state = document.getElementById("sellerState")?.value.trim();
+  const gstin = document.getElementById("sellerGstin")?.value.trim();
+  const btn = document.getElementById("sellerSubmitBtn");
+
+  if (!brand || !owner || !email || !phone || !category) {
+    showToast("Please fill all required merchant fields", "warning");
+    return;
+  }
+
+  if (!email.includes("@") || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+    showToast("Please enter a valid email address", "error");
+    return;
+  }
+
+  const cleanPhone = phone.replace(/\D/g, "");
+  if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    showToast("Please enter a valid 10-digit Indian mobile number", "error");
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Registering Merchant...";
+  }
+
+  try {
+    const res = await fetch("/api/seller/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        brand_name: brand,
+        owner_name: owner,
+        email: email,
+        phone: cleanPhone,
+        category: category,
+        city: city,
+        state: state,
+        gstin: gstin
+      })
+    });
+    const data = await res.json();
+    closeInfoModal();
+    showToast(data.message || "Application submitted! Saved to Excel & sent to shopx.customercare@gmail.com", "success");
+  } catch (err) {
+    closeInfoModal();
+    showToast("Merchant application saved! Our team at shopx.customercare@gmail.com will contact you.", "success");
+  }
+}
+
+/* ==========================================================================
+   CUSTOMER CARE & INQUIRIES (EXCEL & EMAIL UPDATES)
+   ========================================================================== */
 function openHelpSupportModal(defaultSubject = "") {
   openInfoModal(
     "🎧 Help & Customer Support 24x7",
@@ -2908,9 +3034,9 @@ function openHelpSupportModal(defaultSubject = "") {
     <div class="support-channel-grid">
       <div class="support-channel-card">
         <div class="support-channel-title">📧 Business & Support Email</div>
-        <div class="support-channel-desc">Direct inquiries, order issues & merchant support. Linked to store administration.</div>
-        <a href="mailto:support@shopx.store" class="support-channel-link">support@shopx.store</a>
-        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">CC: raghavdeepak664@gmail.com</div>
+        <div class="support-channel-desc">Direct inquiries, order issues & merchant support. Monitored 24/7.</div>
+        <a href="mailto:shopx.customercare@gmail.com" class="support-channel-link">shopx.customercare@gmail.com</a>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Fast resolution guarantee</div>
       </div>
 
       <div class="support-channel-card">
@@ -2936,12 +3062,18 @@ function openHelpSupportModal(defaultSubject = "") {
           </div>
           <div class="form-field-group">
             <label>Your Email *</label>
-            <input type="email" id="contactEmail" required placeholder="john@gmail.com" value="${AppState.user ? escapeHtml(AppState.user.email_phone) : ''}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+            <input type="email" id="contactEmail" required placeholder="john@gmail.com" value="${(AppState.user && AppState.user.email_phone.includes('@')) ? escapeHtml(AppState.user.email_phone) : ''}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
           </div>
         </div>
-        <div class="form-field-group" style="margin-bottom: 10px;">
-          <label>Subject *</label>
-          <input type="text" id="contactSubject" required placeholder="e.g. Order Delivery Status or Product Inquiry" value="${escapeHtml(defaultSubject)}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+          <div class="form-field-group">
+            <label>Mobile Number (10 Digits) *</label>
+            <input type="tel" id="contactPhone" required placeholder="9876543210" maxlength="10" value="${(AppState.user && !AppState.user.email_phone.includes('@')) ? escapeHtml(AppState.user.email_phone) : ''}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+          </div>
+          <div class="form-field-group">
+            <label>Subject *</label>
+            <input type="text" id="contactSubject" required placeholder="e.g. Order Delivery Status or Return" value="${escapeHtml(defaultSubject)}" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-strong);" />
+          </div>
         </div>
         <div class="form-field-group" style="margin-bottom: 14px;">
           <label>Message *</label>
@@ -2956,16 +3088,28 @@ function openHelpSupportModal(defaultSubject = "") {
   );
 }
 
-function submitContactInquiry(event) {
-  event.preventDefault();
-  const name = document.getElementById("contactName").value.trim();
-  const email = document.getElementById("contactEmail").value.trim();
-  const subject = document.getElementById("contactSubject").value.trim();
-  const message = document.getElementById("contactMessage").value.trim();
+async function submitContactInquiry(event) {
+  if (event) event.preventDefault();
+  const name = document.getElementById("contactName")?.value.trim();
+  const email = document.getElementById("contactEmail")?.value.trim();
+  const phone = document.getElementById("contactPhone")?.value.trim();
+  const subject = document.getElementById("contactSubject")?.value.trim();
+  const message = document.getElementById("contactMessage")?.value.trim();
   const btn = document.getElementById("contactSubmitBtn");
 
-  if (!name || !email || !message) {
+  if (!name || !email || !phone || !message) {
     showToast("Please fill all required fields", "warning");
+    return;
+  }
+
+  if (!email.includes("@") || !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+    showToast("Please enter a valid email address (e.g. name@domain.com)", "error");
+    return;
+  }
+
+  const cleanPhone = phone.replace(/\D/g, "");
+  if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+    showToast("Please enter a valid 10-digit mobile number", "error");
     return;
   }
 
@@ -2974,40 +3118,61 @@ function submitContactInquiry(event) {
     btn.textContent = "Sending Message...";
   }
 
-  fetch("/api/contact", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, subject, message })
-  })
-  .then(res => res.json())
-  .then(data => {
+  try {
+    const res = await fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, phone: cleanPhone, subject, message })
+    });
+    const data = await res.json();
     closeInfoModal();
-    showToast(data.message || "Message sent successfully!", "success");
-  })
-  .catch(() => {
+    showToast(data.message || "Message sent! Synced to Excel & forwarded to shopx.customercare@gmail.com", "success");
+  } catch (err) {
     closeInfoModal();
-    showToast("Message recorded! Our team at support@shopx.store will reach out shortly.", "success");
-  });
+    showToast("Message recorded! Our team at shopx.customercare@gmail.com will reach out shortly.", "success");
+  }
 }
 
-function openSocialModal(platform) {
+/* ==========================================================================
+   CONDITIONS OF USE & PRIVACY NOTICE MODALS
+   ========================================================================== */
+function openConditionsModal() {
   openInfoModal(
-    `🌐 Connect on ${platform}`,
-    `Join our official community of over 500,000+ shoppers`,
+    "📜 Conditions of Use",
+    "Terms and Conditions governing the ShopX E-Commerce Platform",
     `
-    <p style="margin-bottom: 14px;">Follow <b>@ShopXOfficial</b> on ${platform} for exclusive discount drops, flash sales, tech unboxings, and giveaways.</p>
-    <div style="background: var(--bg-page); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
-      <div>
-        <div style="font-weight: 700; font-size: 14px;">ShopX Official Channel</div>
-        <div style="font-size: 12px; color: var(--text-muted);">Verified Community & Updates</div>
-      </div>
-      <a href="https://${platform.toLowerCase().replace(/[^a-z]/g, '')}.com" target="_blank" rel="noopener noreferrer" class="slide-cta-btn" style="text-decoration: none; padding: 8px 16px;">
-        Follow on ${platform}
-      </a>
+    <div style="font-size: 13px; line-height: 1.6; color: var(--text-main);">
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">1. Terms of Service</h4>
+      <p style="margin-bottom: 12px;">By accessing, browsing, or placing orders on ShopX, you agree to comply with and be bound by these Conditions of Use and all applicable laws and regulations of the Republic of India.</p>
+      
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">2. Account Integrity & Single Registration</h4>
+      <p style="margin-bottom: 12px;">Users may create only one account per verified email address or phone number. Any fraudulent or duplicate registrations will be deactivated.</p>
+      
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">3. Products & Pricing</h4>
+      <p style="margin-bottom: 12px;">Our catalog contains over 500+ curated products across Electronics, Fashion, Home & Kitchen, Mobiles, and more. All prices are in Indian Rupees (₹) inclusive of GST.</p>
+      
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">4. Grievance & Escalation</h4>
+      <p>For any grievances or legal notices, contact our Grievance Desk at <b>shopx.customercare@gmail.com</b>.</p>
     </div>
     `
   );
 }
 
-// Global Alias
-window.openQuickViewModal = openProductQuickView;
+function openPrivacyModal() {
+  openInfoModal(
+    "🔒 Privacy Notice",
+    "How ShopX Protects and Manages Customer Data",
+    `
+    <div style="font-size: 13px; line-height: 1.6; color: var(--text-main);">
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">1. Data Collection</h4>
+      <p style="margin-bottom: 12px;">We collect only necessary information: verified customer name, email, phone number, and delivery addresses to fulfill purchases and provide live shipment tracking.</p>
+      
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">2. Security & Encryption</h4>
+      <p style="margin-bottom: 12px;">All customer records, orders, and authentication sessions are secured with 256-bit SSL encryption. We never sell your personal information to third parties.</p>
+      
+      <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 6px;">3. Direct Communication</h4>
+      <p>Customer inquiries, merchant registrations, and purchase receipts route directly to our central verified mailbox: <b>shopx.customercare@gmail.com</b>.</p>
+    </div>
+    `
+  );
+}

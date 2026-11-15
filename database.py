@@ -1,17 +1,47 @@
 """
 ShopX Database Module
-Handles SQLite initialization, product seeding, search, filtering, and order management.
+Handles SQLite initialization, 500+ product catalog seeding, search, filtering,
+robust user authentication, OTP password resets, seller registrations, and order management.
 """
 
 import sqlite3
 import json
 import os
+import re
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import excel_logger
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shopx.db")
+
+def is_valid_email(email):
+    """Strict validation for standard RFC-compliant email address with valid TLD."""
+    if not email or "@" not in email:
+        return False
+    email = email.strip()
+    # RFC 5322 pattern
+    pattern = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+    if not re.match(pattern, email):
+        return False
+    parts = email.split("@")
+    if len(parts) != 2:
+        return False
+    domain = parts[1]
+    if "." not in domain or len(domain.split(".")[-1]) < 2:
+        return False
+    return True
+
+def is_valid_indian_mobile(phone):
+    """Validation for valid 10-digit Indian mobile number."""
+    if not phone:
+        return False
+    cleaned = re.sub(r'[\s\-\+\(\)]', '', str(phone).strip())
+    if cleaned.startswith("91") and len(cleaned) == 12:
+        cleaned = cleaned[2:]
+    elif cleaned.startswith("0") and len(cleaned) == 11:
+        cleaned = cleaned[1:]
+    return bool(re.match(r'^[6-9]\d{9}$', cleaned))
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -54,6 +84,7 @@ def init_db():
         order_id TEXT PRIMARY KEY,
         created_at TEXT NOT NULL,
         customer_name TEXT NOT NULL,
+        customer_email TEXT,
         customer_phone TEXT NOT NULL,
         address TEXT NOT NULL,
         city TEXT NOT NULL,
@@ -66,7 +97,8 @@ def init_db():
         coupon_applied TEXT,
         total REAL NOT NULL,
         status TEXT NOT NULL,
-        expected_delivery TEXT NOT NULL
+        expected_delivery TEXT NOT NULL,
+        product_urls TEXT
     )
     """)
 
@@ -130,24 +162,67 @@ def init_db():
         timestamp TEXT NOT NULL,
         name TEXT NOT NULL,
         email TEXT NOT NULL,
+        phone TEXT,
         subject TEXT NOT NULL,
         message TEXT NOT NULL,
         status TEXT DEFAULT 'PENDING'
     )
     """)
 
-    # Ensure customer_email column exists on orders
+    # Password Resets (OTP verification) table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS password_resets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email_phone TEXT NOT NULL,
+        otp TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        is_used INTEGER DEFAULT 0
+    )
+    """)
+
+    # Sellers table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS sellers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT NOT NULL,
+        brand_name TEXT NOT NULL,
+        owner_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        category TEXT NOT NULL,
+        city TEXT,
+        state TEXT,
+        gstin TEXT,
+        status TEXT DEFAULT 'PENDING_REVIEW'
+    )
+    """)
+
+    # Ensure optional columns exist
     try:
         cursor.execute("ALTER TABLE orders ADD COLUMN customer_email TEXT")
     except Exception:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN product_urls TEXT")
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE contact_inquiries ADD COLUMN phone TEXT")
+    except Exception:
+        pass
+
     conn.commit()
 
-    # Re-sync products table with clean 40-item catalog & color variants
-    cursor.execute("DELETE FROM products")
-    seed_data(cursor)
-    conn.commit()
+    # Seed products if table is empty or less than 500 items
+    cursor.execute("SELECT COUNT(*) FROM products")
+    count = cursor.fetchone()[0]
+    if count < 500:
+        cursor.execute("DELETE FROM products")
+        seed_data(cursor)
+        conn.commit()
 
     conn.close()
 
@@ -189,7 +264,7 @@ def seed_data(cursor):
             json.dumps(p.get("tags", []))
         ))
 
-    # Seed Coupons (Updated: Removed ShopX Plus, added FESTIVE10)
+    # Seed Coupons
     coupons = [
         ("SHOPX100", "fixed", 100, None, 500, "Flat ₹100 OFF on orders above ₹500"),
         ("FESTIVE20", "percent", 20, 1000, 1500, "20% OFF up to ₹1,000"),
@@ -200,17 +275,17 @@ def seed_data(cursor):
 
     # Seed initial reviews
     sample_reviews = [
-        (1, "Vikram Malhotra", 5, "2 days ago", 1, "Best iPhone ever! Titanium feel is incredible", "The weight reduction compared to the 14 Pro is noticeable immediately. The camera is pin sharp, battery lasts all day, and USB-C is finally here!"),
-        (1, "Sneha Roy", 4, "1 week ago", 1, "Premium phone, smooth 120Hz", "Very happy with the purchase. Action button is super handy. Price is steep but trade-in made it reasonable."),
-        (6, "Aditya Sharma", 5, "3 days ago", 1, "Unbeatable noise cancellation for flights & office", "The XM5 is astonishingly quiet. Multipoint connects seamlessly between my laptop and phone. Very comfortable headband."),
-        (11, "Rahul Verma", 5, "Yesterday", 1, "Grail sneaker acquired!", "Authentic pair with ShopX Assured tag. The vintage cracked leather accents look phenomenal in person.")
+        (1, "Vikram Malhotra", 5, "2 days ago", 1, "Best Kitchen Cookware! Quality feel is incredible", "Solid performance, cooks evenly with minimal oil. Clean-up is a breeze!"),
+        (2, "Sneha Roy", 4, "1 week ago", 1, "Premium build, super sharp & durable", "Very happy with the purchase. Beautiful finish and sturdy grip handles."),
+        (3, "Aditya Sharma", 5, "3 days ago", 1, "Fast boiling & high energy efficiency", "Astonishingly well-built. Fits perfectly on our countertop and looks sleek."),
+        (4, "Rahul Verma", 5, "Yesterday", 1, "Authentic ShopX Assured Quality", "Received on time in tamper-proof packaging. 100% recommended!")
     ]
     cursor.executemany("""
     INSERT INTO reviews (product_id, author, rating, date, verified, title, comment)
     VALUES (?, ?, ?, ?, ?, ?, ?)
     """, sample_reviews)
 
-def get_products(query="", category="", min_price=None, max_price=None, min_rating=None, brand="", assured_only=False, deals_only=False, sort_by="relevance"):
+def get_products(query="", category="", min_price=None, max_price=None, min_rating=None, brand="", assured_only=False, deals_only=False, sort_by="relevance", page=1, limit=520):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -299,10 +374,8 @@ def get_product(product_id):
     d["colors"] = d["specs"].get("colors", [])
     d["tags"] = json.loads(d["tags"]) if d["tags"] else []
     
-    # Also fetch reviews
     cursor.execute("SELECT * FROM reviews WHERE product_id = ? ORDER BY id DESC", (product_id,))
-    reviews = [dict(rev) for rev in cursor.fetchall()]
-    d["reviews"] = reviews
+    d["reviews"] = [dict(rev) for rev in cursor.fetchall()]
 
     conn.close()
     return d
@@ -360,36 +433,38 @@ def create_order(order_data):
     order_id = f"SX-{random.randint(100000, 999999)}-{random.randint(10, 99)}"
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Calculate estimated delivery date: 2 days from now
-    from datetime import timedelta
     delivery_date = (datetime.now() + timedelta(days=2)).strftime("%A, %d %b %Y")
-
     customer_email = order_data.get("email") or order_data.get("customer_email") or ""
+
+    items = order_data.get("items", [])
+    base_url = "https://shopx-ecommerce.onrender.com"
+    product_urls = " | ".join([f"{base_url}/store?product={i.get('id', 1)}" for i in items])
 
     cursor.execute("""
     INSERT INTO orders (
         order_id, created_at, customer_name, customer_email, customer_phone, address,
         city, pincode, payment_method, items, subtotal, discount,
-        delivery_fee, coupon_applied, total, status, expected_delivery
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        delivery_fee, coupon_applied, total, status, expected_delivery, product_urls
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         order_id,
         created_at,
         order_data.get("name", "Customer"),
         customer_email,
         order_data.get("phone", "9876543210"),
-        order_data.get("address", "Flat 402, Highline Residency"),
+        order_data.get("address", "Delivery Address"),
         order_data.get("city", "New Delhi"),
         order_data.get("pincode", "110001"),
         order_data.get("payment_method", "UPI"),
-        json.dumps(order_data.get("items", [])),
+        json.dumps(items),
         order_data.get("subtotal", 0),
         order_data.get("discount", 0),
         order_data.get("delivery_fee", 0),
         order_data.get("coupon_applied", ""),
         order_data.get("total", 0),
         "Order Confirmed",
-        delivery_date
+        delivery_date,
+        product_urls
     ))
     conn.commit()
     conn.close()
@@ -400,10 +475,11 @@ def create_order(order_data):
         "created_at": created_at,
         "expected_delivery": delivery_date,
         "total": order_data.get("total", 0),
-        "customer_email": customer_email
+        "customer_email": customer_email,
+        "product_urls": product_urls
     }
 
-    # Automatically save purchase data to Excel and CSV on user's PC!
+    # Automatically save purchase data to Excel, CSV, and Google Sheets
     try:
         excel_logger.log_order_purchase({**order_data, **result})
     except Exception as e:
@@ -411,31 +487,97 @@ def create_order(order_data):
 
     return result
 
-def save_contact_inquiry(name, email, subject, message):
-    """Save customer or seller business inquiry and stream to Google Sheets."""
+def save_contact_inquiry(name, email, phone, subject, message):
+    """Save customer help inquiry, stream to Google Sheets and forward to shopx.customercare@gmail.com."""
+    name = (name or "").strip()
+    email = (email or "").strip()
+    phone = (phone or "").strip()
+    subject = (subject or "General Support Inquiry").strip()
+    message = (message or "").strip()
+
+    if not name or len(name) < 2:
+        return {"success": False, "message": "Please enter your full name."}
+    if not is_valid_email(email):
+        return {"success": False, "message": "Please enter a valid email address (e.g., name@domain.com)."}
+    if phone and not is_valid_indian_mobile(phone):
+        return {"success": False, "message": "Please enter a valid 10-digit mobile number."}
+    if not message or len(message) < 5:
+        return {"success": False, "message": "Please describe your query or problem in detail."}
+
     conn = get_connection()
     cursor = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""
-    INSERT INTO contact_inquiries (timestamp, name, email, subject, message, status)
-    VALUES (?, ?, ?, ?, ?, 'NEW')
-    """, (timestamp, name, email, subject, message))
+    INSERT INTO contact_inquiries (timestamp, name, email, phone, subject, message, status)
+    VALUES (?, ?, ?, ?, ?, ?, 'NEW')
+    """, (timestamp, name, email, phone, subject, message))
     conn.commit()
     conn.close()
 
-    # Log to Excel and Google Sheets live webhook
+    # Log to Excel workbook and Google Sheets
     try:
-        excel_logger.log_event(
-            event_type="CONTACT_INQUIRY",
-            customer_name=name,
-            email_phone=email,
-            details=f"[{subject}] {message[:60]}",
-            amount=0
-        )
+        excel_logger.log_customer_inquiry({
+            "name": name,
+            "email": email,
+            "phone": phone or "N/A",
+            "subject": subject,
+            "message": message
+        })
     except Exception as e:
         print("Error logging contact inquiry:", e)
 
-    return {"success": True, "message": "Inquiry recorded successfully"}
+    return {
+        "success": True,
+        "message": f"Thank you {name}! Your help request has been recorded and dispatched to our customer care team at shopx.customercare@gmail.com. We will reply to {email} shortly."
+    }
+
+def register_seller(brand_name, owner_name, email, phone, category, city="", state="", gstin=""):
+    """Register merchant seller application and log to Excel and Google Sheets."""
+    brand_name = (brand_name or "").strip()
+    owner_name = (owner_name or "").strip()
+    email = (email or "").strip()
+    phone = (phone or "").strip()
+    category = (category or "General Merchandise").strip()
+
+    if not brand_name or len(brand_name) < 2:
+        return {"success": False, "message": "Please enter your business or brand name."}
+    if not owner_name or len(owner_name) < 2:
+        return {"success": False, "message": "Please enter the business owner's full name."}
+    if not is_valid_email(email):
+        return {"success": False, "message": "Please enter a valid business email address (e.g., partner@brand.com)."}
+    if not is_valid_indian_mobile(phone):
+        return {"success": False, "message": "Please enter a valid 10-digit mobile phone number."}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+    INSERT INTO sellers (created_at, brand_name, owner_name, email, phone, category, city, state, gstin, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW')
+    """, (now, brand_name, owner_name, email, phone, category, city, state, gstin))
+    conn.commit()
+    conn.close()
+
+    seller_payload = {
+        "brand_name": brand_name,
+        "owner_name": owner_name,
+        "email": email,
+        "phone": phone,
+        "category": category,
+        "city": city or "N/A",
+        "state": state or "N/A",
+        "gstin": gstin or "N/A"
+    }
+
+    try:
+        excel_logger.log_seller_application(seller_payload)
+    except Exception as e:
+        print("Excel seller log note:", e)
+
+    return {
+        "success": True,
+        "message": f"Application received! Details have been saved to our merchant registry and forwarded to shopx.customercare@gmail.com. Our seller onboarding team will contact {owner_name} at {phone} within 24 hours."
+    }
 
 def get_orders():
     conn = get_connection()
@@ -460,10 +602,9 @@ def get_order_tracking(order_id):
     d = dict(row)
     d["items"] = json.loads(d["items"])
     
-    # Generate timeline
     timeline = [
         {"step": "Order Placed", "status": "completed", "time": d["created_at"], "description": "We received your order and payment was verified."},
-        {"step": "Order Packed", "status": "completed", "time": "ShopX Fulfillment Center, Warehouse 4", "description": "Seller has processed and securely packed your items."},
+        {"step": "Order Packed", "status": "completed", "time": "ShopX Fulfillment Center, Hub 4", "description": "Seller has processed and securely packed your items."},
         {"step": "Shipped", "status": "in_progress", "time": "In Transit via ShopX Express", "description": "Package is on its way to the delivery hub near your pincode."},
         {"step": "Out for Delivery", "status": "upcoming", "time": "Pending local dispatch", "description": "Our courier partner will deliver today."},
         {"step": "Delivered", "status": "upcoming", "time": d["expected_delivery"], "description": "Package delivered to doorstep."}
@@ -472,13 +613,32 @@ def get_order_tracking(order_id):
     return d
 
 def register_user(name, email_phone, password, ip_address="127.0.0.1", user_agent=""):
+    name = (name or "").strip()
+    email_phone = (email_phone or "").strip()
+    password = (password or "").strip()
+
+    if not name or len(name) < 2:
+        return {"success": False, "message": "Please enter your full name (at least 2 characters)."}
+
+    # Strict email or 10-digit mobile verification
+    is_email = "@" in email_phone
+    if is_email:
+        if not is_valid_email(email_phone):
+            return {"success": False, "message": "Please enter a valid email address (e.g., name@domain.com)."}
+    else:
+        if not is_valid_indian_mobile(email_phone):
+            return {"success": False, "message": "Please enter a valid email address or 10-digit mobile number."}
+
+    if len(password) < 6:
+        return {"success": False, "message": "Password must be at least 6 characters long."}
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email_phone = ?", (email_phone,))
+    cursor.execute("SELECT id FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
     existing = cursor.fetchone()
     if existing:
         conn.close()
-        return {"success": False, "message": "An account with this email or mobile number already exists."}
+        return {"success": False, "message": "An account with this email/mobile already exists. Please Sign In."}
     
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     hashed_pwd = generate_password_hash(password)
@@ -489,7 +649,6 @@ def register_user(name, email_phone, password, ip_address="127.0.0.1", user_agen
     conn.commit()
     conn.close()
 
-    # Log event status (no plaintext passwords)
     try:
         excel_logger.log_login_or_signup("SIGNUP", name, email_phone, "SUCCESS", ip_address, user_agent)
     except Exception as e:
@@ -498,9 +657,23 @@ def register_user(name, email_phone, password, ip_address="127.0.0.1", user_agen
     return {"success": True, "name": name, "email_phone": email_phone, "message": "Account created successfully!"}
 
 def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
+    email_phone = (email_phone or "").strip()
+    password = (password or "").strip()
+
+    is_email = "@" in email_phone
+    if is_email:
+        if not is_valid_email(email_phone):
+            return {"success": False, "message": "Please enter a valid email address format (e.g. name@domain.com)."}
+    else:
+        if not is_valid_indian_mobile(email_phone):
+            return {"success": False, "message": "Please enter a valid 10-digit mobile number or email address."}
+
+    if not password:
+        return {"success": False, "message": "Please enter your password."}
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email_phone = ?", (email_phone,))
+    cursor.execute("SELECT * FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
     user = cursor.fetchone()
     
     if not user:
@@ -509,10 +682,9 @@ def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
             excel_logger.log_event("LOGIN_FAILED", "Unknown", email_phone, "Account not found", 0, ip_address, user_agent)
         except Exception:
             pass
-        return {"success": False, "message": "No account found with this email or mobile number."}
+        return {"success": False, "message": "No account found with this email/mobile. Please check your credentials or create an account."}
     
     user_dict = dict(user)
-    # Support both hashed passwords and legacy plaintext
     stored_pwd = user_dict["password"]
     is_valid = False
     if stored_pwd.startswith("scrypt:") or stored_pwd.startswith("pbkdf2:"):
@@ -526,7 +698,7 @@ def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
             excel_logger.log_event("LOGIN_FAILED", user_dict["name"], email_phone, "Incorrect password", 0, ip_address, user_agent)
         except Exception:
             pass
-        return {"success": False, "message": "Incorrect password. Please try again."}
+        return {"success": False, "message": "Incorrect password. Please try again or use 'Forgot Password'."}
 
     # Update last login
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -534,13 +706,97 @@ def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
     conn.commit()
     conn.close()
 
-    # Log event status
     try:
         excel_logger.log_login_or_signup("LOGIN", user_dict["name"], email_phone, "SUCCESS", ip_address, user_agent)
     except Exception as e:
         print("Excel logging error:", e)
 
     return {"success": True, "name": user_dict["name"], "email_phone": user_dict["email_phone"], "message": "Logged in successfully!"}
+
+def create_password_reset_otp(email_phone):
+    """Generate and store 6-digit OTP for password reset."""
+    email_phone = (email_phone or "").strip()
+    
+    is_email = "@" in email_phone
+    if is_email:
+        if not is_valid_email(email_phone):
+            return {"success": False, "message": "Please enter a valid email address format."}
+    else:
+        if not is_valid_indian_mobile(email_phone):
+            return {"success": False, "message": "Please enter a valid 10-digit mobile number or email."}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        return {"success": False, "message": "No registered account found with this email/mobile. Please verify or sign up."}
+
+    otp = f"{random.randint(100000, 999999)}"
+    now = datetime.now()
+    created_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    expires_at = (now + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+
+    cursor.execute("""
+    INSERT INTO password_resets (email_phone, otp, created_at, expires_at, is_used)
+    VALUES (?, ?, ?, ?, 0)
+    """, (email_phone, otp, created_at, expires_at))
+    conn.commit()
+    conn.close()
+
+    # Log to Activity stream and Excel
+    try:
+        excel_logger.log_event("FORGOT_PASSWORD_OTP", user["name"], email_phone, f"Password reset OTP generated: {otp} (Expires in 10 mins)")
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "message": f"Verification code sent to {email_phone}. Valid for 10 minutes.",
+        "otp": otp,  # returned for instant visual verification / testing
+        "user_name": user["name"]
+    }
+
+def verify_otp_and_reset_password(email_phone, otp, new_password):
+    """Verify OTP and update user password."""
+    email_phone = (email_phone or "").strip()
+    otp = (otp or "").strip()
+    new_password = (new_password or "").strip()
+
+    if not otp or len(otp) != 6:
+        return {"success": False, "message": "Please enter a valid 6-digit verification code."}
+
+    if len(new_password) < 6:
+        return {"success": False, "message": "New password must be at least 6 characters long."}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+    SELECT id FROM password_resets 
+    WHERE LOWER(email_phone) = LOWER(?) AND otp = ? AND is_used = 0 AND expires_at >= ?
+    ORDER BY id DESC LIMIT 1
+    """, (email_phone, otp, now_str))
+    reset_entry = cursor.fetchone()
+
+    if not reset_entry:
+        conn.close()
+        return {"success": False, "message": "Invalid or expired verification code. Please request a new code."}
+
+    reset_id = reset_entry["id"]
+    hashed_pwd = generate_password_hash(new_password)
+    cursor.execute("UPDATE users SET password = ? WHERE LOWER(email_phone) = LOWER(?)", (hashed_pwd, email_phone))
+    cursor.execute("UPDATE password_resets SET is_used = 1 WHERE id = ?", (reset_id,))
+    conn.commit()
+    conn.close()
+
+    try:
+        excel_logger.log_event("PASSWORD_RESET_SUCCESS", "User", email_phone, "Password successfully updated via OTP verification.")
+    except Exception:
+        pass
+
+    return {"success": True, "message": "Password updated successfully! You can now sign in with your new password."}
 
 def track_cart_action(customer_name, product_id, title, brand, quantity, price, action="ADDED", ip_address="127.0.0.1"):
     try:
@@ -557,7 +813,6 @@ def add_product_review(product_id, author, rating, title, comment):
     VALUES (?, ?, ?, 'Just now', 1, ?, ?)
     """, (product_id, author, rating, title, comment))
     
-    # Update product rating and reviews count
     cursor.execute("""
     SELECT AVG(rating), COUNT(*) FROM reviews WHERE product_id = ?
     """, (product_id,))

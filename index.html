@@ -143,7 +143,7 @@
         <div class="sub-nav-item" onclick="selectCategory('Footwear & Sneakers')">Sneakers</div>
         <div class="sub-nav-item" onclick="selectCategory('Home & Kitchen')">Home & Kitchen</div>
         <div class="sub-nav-item" onclick="openOrdersModal()">Track Orders</div>
-        <div class="sub-nav-item highlight" style="margin-left: auto;" onclick="openHelpSupportModal()"><span style="margin-right: 4px;">🎧</span> 24x7 Customer Help: support@shopx.store</div>
+        <div class="sub-nav-item highlight" style="margin-left: auto;" onclick="openHelpSupportModal()"><span style="margin-right: 4px;">🎧</span> 24x7 Customer Help: shopx.customercare@gmail.com</div>
       </div>
     </div>
   </header>
@@ -373,8 +373,22 @@
         <div class="active-filters-chips-bar" id="activeFilterChipsBar"></div>
 
         <!-- Products Grid Container -->
-        <div class="products-grid" id="productsGrid">
+                <div class="products-grid" id="productsGrid">
           <!-- Rendered dynamically via JS -->
+        </div>
+
+        <!-- Pagination / Load More Container to Eliminate Mobile Crashing -->
+        <div class="load-more-container" id="loadMoreContainer" style="display: none; text-align: center; margin: 32px 0 16px;">
+          <div class="load-more-progress-text" id="loadMoreProgressText" style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+            Showing <b id="loadedCountNum">24</b> of <b id="totalCountNum">520</b> products
+          </div>
+          <div class="load-more-progress-bar" style="max-width: 260px; height: 5px; background: #e5e7eb; border-radius: 4px; margin: 0 auto 14px; overflow: hidden;">
+            <div id="loadMoreProgressFill" style="height: 100%; width: 5%; background: var(--flipkart-blue); transition: width 0.3s ease;"></div>
+          </div>
+          <button class="load-more-btn" id="loadMoreBtn" onclick="loadMoreProducts()">
+            <span>Load More Products</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
 
       </section>
@@ -584,15 +598,7 @@
         </ul>
       </div>
 
-      <div>
-        <div class="footer-col-title">Connect with Us</div>
-        <ul class="footer-links-list">
-          <li><a href="javascript:void(0)" onclick="openSocialModal('Facebook')">Facebook</a></li>
-          <li><a href="javascript:void(0)" onclick="openSocialModal('Twitter / X')">Twitter / X</a></li>
-          <li><a href="javascript:void(0)" onclick="openSocialModal('Instagram')">Instagram</a></li>
-          <li><a href="javascript:void(0)" onclick="openSocialModal('YouTube')">YouTube</a></li>
-        </ul>
-      </div>
+      
 
       <div>
         <div class="footer-col-title">Make Money with Us</div>
@@ -618,6 +624,12 @@
     </div>
 
     <div class="footer-bottom-bar">
+      <div class="footer-legal-links-row" style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 12px;">
+        <a href="javascript:void(0)" onclick="openConditionsModal()" style="color: #cbd5e1; font-size: 12px; text-decoration: none;">Conditions of Use</a>
+        <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color: #cbd5e1; font-size: 12px; text-decoration: none;">Privacy Notice</a>
+        <a href="javascript:void(0)" onclick="openHelpSupportModal()" style="color: #cbd5e1; font-size: 12px; text-decoration: none;">Help & Support</a>
+        <a href="javascript:void(0)" onclick="openSellerModal()" style="color: #cbd5e1; font-size: 12px; text-decoration: none;">Sell on ShopX</a>
+      </div>
       <div class="footer-brand-wrap">
         <div class="logo-brand" style="font-size: 22px;">
           <span class="brand-shop">Shop</span><span class="brand-x">X</span>
@@ -727,5 +739,332 @@
   <script src="/static/js/app.js"></script>
   <!-- Fallback relative script if opened directly as file:// -->
   <script src="static/js/app.js"></script>
+
+  <!-- ==========================================================================
+       FLOATING PRODUCT COMPARISON DOCK BAR
+       ========================================================================== -->
+  <div class="compare-dock-bar" id="compareDockBar">
+    <div class="compare-dock-content">
+      <div class="compare-dock-left">
+        <div class="compare-dock-title">
+          <span>⚖️ Compare Products</span>
+          <span class="compare-count-badge" id="compareCountBadge">0/4</span>
+        </div>
+        <div class="compare-thumbnails-list" id="compareThumbnailsList">
+          <!-- Injected dynamically via JS -->
+        </div>
+      </div>
+      <div class="compare-dock-actions">
+        <button class="compare-clear-btn" onclick="clearComparison()">Clear All</button>
+        <button class="compare-submit-btn" id="compareSubmitBtn" onclick="openCompareModal()" disabled>
+          Compare (0)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       PRODUCT SIDE-BY-SIDE COMPARISON MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="compareModal" onclick="if(event.target===this) closeCompareModal()">
+    <div class="compare-modal-content">
+      <div class="compare-modal-header">
+        <div class="compare-modal-title">
+          <span>⚖️ Product Side-by-Side Comparison</span>
+          <span style="font-size: 12px; font-weight: 500; color: #6b7280; margin-left: 8px;">Detailed Specs & Price Analysis</span>
+        </div>
+        <button class="modal-close-icon-btn" onclick="closeCompareModal()">×</button>
+      </div>
+      <div class="compare-modal-body" id="compareModalBody">
+        <!-- Injected dynamically via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       REALISTIC MOCK PAYMENT GATEWAY MODAL (Multi-channel UPI, Card, NetBanking, COD)
+       ========================================================================== -->
+  <div class="modal-backdrop-overlay" id="paymentGatewayModal" onclick="if(event.target===this) closePaymentGatewayModal()">
+    <div class="payment-gateway-dialog">
+      <div class="pg-header">
+        <div class="pg-header-left">
+          <div class="pg-shield-icon">🔒</div>
+          <div>
+            <div class="pg-title">ShopX Secure 256-Bit SSL Payment Gateway</div>
+            <div class="pg-subtitle">PCI-DSS Level 1 Certified • 100% Purchase Protection</div>
+          </div>
+        </div>
+        <div class="pg-header-right">
+          <div class="pg-amount-label">Payable Amount</div>
+          <div class="pg-amount-value" id="pgPayableAmountDisplay">₹0</div>
+        </div>
+        <button class="modal-close-icon-btn" style="color: #ffffff; margin-left: 14px;" onclick="closePaymentGatewayModal()">×</button>
+      </div>
+
+      <div class="pg-body">
+        <!-- Sidebar Tabs -->
+        <div class="pg-sidebar">
+          <button class="pg-tab-btn active" data-tab="upi" onclick="switchPgTab('upi')">
+            <span class="pg-tab-icon">⚡</span>
+            <div class="pg-tab-info">
+              <span class="pg-tab-name">Instant UPI / QR</span>
+              <span class="pg-tab-desc">GPay, PhonePe, Paytm, BHIM</span>
+            </div>
+          </button>
+          <button class="pg-tab-btn" data-tab="card" onclick="switchPgTab('card')">
+            <span class="pg-tab-icon">💳</span>
+            <div class="pg-tab-info">
+              <span class="pg-tab-name">Credit / Debit Card</span>
+              <span class="pg-tab-desc">Visa, MasterCard, RuPay</span>
+            </div>
+          </button>
+          <button class="pg-tab-btn" data-tab="netbanking" onclick="switchPgTab('netbanking')">
+            <span class="pg-tab-icon">🏦</span>
+            <div class="pg-tab-info">
+              <span class="pg-tab-name">Net Banking</span>
+              <span class="pg-tab-desc">All Major Indian Banks</span>
+            </div>
+          </button>
+          <button class="pg-tab-btn" data-tab="cod" onclick="switchPgTab('cod')">
+            <span class="pg-tab-icon">💵</span>
+            <div class="pg-tab-info">
+              <span class="pg-tab-name">Cash on Delivery</span>
+              <span class="pg-tab-desc">Pay at doorstep with Cash/QR</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Tab Content Panes -->
+        <div class="pg-content-pane">
+          <!-- UPI Pane -->
+          <div class="pg-pane active" id="pgPane-upi">
+            <div class="pg-upi-container">
+              <div class="pg-qr-box">
+                <div class="pg-qr-title">Scan QR code using any UPI App</div>
+                <div class="pg-qr-frame">
+                  <div id="pgQrCanvasContainer" class="pg-qr-code-graphic">
+                    <!-- Dynamic SVG QR Code -->
+                    <svg viewBox="0 0 100 100" width="130" height="130">
+                      <rect width="100" height="100" fill="#ffffff" />
+                      <!-- Top Left Pos Marker -->
+                      <rect x="10" y="10" width="24" height="24" fill="#000000" />
+                      <rect x="14" y="14" width="16" height="16" fill="#ffffff" />
+                      <rect x="18" y="18" width="8" height="8" fill="#000000" />
+                      <!-- Top Right Pos Marker -->
+                      <rect x="66" y="10" width="24" height="24" fill="#000000" />
+                      <rect x="70" y="14" width="16" height="16" fill="#ffffff" />
+                      <rect x="74" y="18" width="8" height="8" fill="#000000" />
+                      <!-- Bottom Left Pos Marker -->
+                      <rect x="10" y="66" width="24" height="24" fill="#000000" />
+                      <rect x="14" y="70" width="16" height="16" fill="#ffffff" />
+                      <rect x="18" y="74" width="8" height="8" fill="#000000" />
+                      <!-- Data bits simulation -->
+                      <rect x="42" y="12" width="6" height="6" fill="#000" />
+                      <rect x="52" y="12" width="6" height="6" fill="#000" />
+                      <rect x="38" y="24" width="6" height="6" fill="#000" />
+                      <rect x="48" y="32" width="8" height="8" fill="#000" />
+                      <rect x="12" y="44" width="6" height="6" fill="#000" />
+                      <rect x="24" y="44" width="6" height="6" fill="#000" />
+                      <rect x="42" y="44" width="16" height="16" fill="#2874f0" />
+                      <rect x="64" y="44" width="6" height="6" fill="#000" />
+                      <rect x="76" y="44" width="6" height="6" fill="#000" />
+                      <rect x="88" y="44" width="6" height="6" fill="#000" />
+                      <rect x="44" y="68" width="6" height="6" fill="#000" />
+                      <rect x="56" y="68" width="6" height="6" fill="#000" />
+                      <rect x="44" y="80" width="6" height="6" fill="#000" />
+                      <rect x="64" y="74" width="10" height="10" fill="#000" />
+                      <rect x="80" y="80" width="8" height="8" fill="#000" />
+                    </svg>
+                  </div>
+                  <div class="pg-qr-timer">
+                    <span>⏱️ Code expires in: </span>
+                    <b id="pgQrTimer">04:59</b>
+                  </div>
+                </div>
+                <div class="pg-upi-apps-row">
+                  <span class="pg-upi-chip">Google Pay</span>
+                  <span class="pg-upi-chip">PhonePe</span>
+                  <span class="pg-upi-chip">Paytm</span>
+                  <span class="pg-upi-chip">BHIM</span>
+                  <span class="pg-upi-chip">CRED</span>
+                </div>
+              </div>
+              
+              <div class="pg-or-divider"><span>OR ENTER UPI ID</span></div>
+
+              <div class="pg-vpa-box">
+                <label class="pg-input-label">Virtual Payment Address (UPI ID)</label>
+                <div class="pg-vpa-input-row">
+                  <input type="text" id="pgUpiVpaInput" class="pg-input" placeholder="e.g. 9876543210@upi or rahul@okhdfcbank" />
+                  <button type="button" class="pg-pay-btn" onclick="executeMockPayment('UPI')">Verify & Pay</button>
+                </div>
+                <div class="pg-secure-hint">Instant authorization request sent directly to your UPI App.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Pane -->
+          <div class="pg-pane" id="pgPane-card">
+            <div class="pg-card-form">
+              <div class="pg-card-preview" id="pgCardPreview">
+                <div class="card-preview-chip"></div>
+                <div class="card-preview-number" id="cardPreviewNum">•••• •••• •••• ••••</div>
+                <div class="card-preview-row">
+                  <div>
+                    <div class="card-preview-label">CARD HOLDER</div>
+                    <div class="card-preview-val" id="cardPreviewName">YOUR NAME</div>
+                  </div>
+                  <div>
+                    <div class="card-preview-label">EXPIRES</div>
+                    <div class="card-preview-val" id="cardPreviewExp">MM/YY</div>
+                  </div>
+                </div>
+                <div class="card-preview-brand" id="cardPreviewBrand">RuPay</div>
+              </div>
+
+              <div class="form-grid" style="margin-top: 14px;">
+                <div class="form-field-group full-width">
+                  <label class="pg-input-label">Card Number *</label>
+                  <input type="text" id="pgCardNumber" class="pg-input" placeholder="4532 •••• •••• ••••" maxlength="19" oninput="formatCardNumber(this)" />
+                </div>
+                <div class="form-field-group full-width">
+                  <label class="pg-input-label">Cardholder Name *</label>
+                  <input type="text" id="pgCardName" class="pg-input" placeholder="Name on card" oninput="updateCardName(this.value)" />
+                </div>
+                <div class="form-field-group">
+                  <label class="pg-input-label">Valid Thru *</label>
+                  <input type="text" id="pgCardExp" class="pg-input" placeholder="MM/YY" maxlength="5" oninput="formatCardExp(this)" />
+                </div>
+                <div class="form-field-group">
+                  <label class="pg-input-label">CVV / CVC *</label>
+                  <input type="password" id="pgCardCvv" class="pg-input" placeholder="•••" maxlength="4" />
+                </div>
+              </div>
+
+              <button type="button" class="pg-pay-btn" style="width: 100%; margin-top: 14px; height: 42px; font-size: 15px;" onclick="trigger3DSecureOtp()">
+                Pay <span id="pgCardPayBtnAmount">₹0</span> Securely
+              </button>
+            </div>
+          </div>
+
+          <!-- Net Banking Pane -->
+          <div class="pg-pane" id="pgPane-netbanking">
+            <div class="pg-nb-container">
+              <div class="pg-input-label" style="margin-bottom: 10px;">Select Popular Indian Banks</div>
+              <div class="pg-popular-banks-grid">
+                <button type="button" class="pg-bank-btn active" onclick="selectBank(this, 'HDFC Bank')">
+                  <span class="bank-icon">🏛️</span>
+                  <span>HDFC Bank</span>
+                </button>
+                <button type="button" class="pg-bank-btn" onclick="selectBank(this, 'State Bank of India')">
+                  <span class="bank-icon">🏦</span>
+                  <span>SBI</span>
+                </button>
+                <button type="button" class="pg-bank-btn" onclick="selectBank(this, 'ICICI Bank')">
+                  <span class="bank-icon">🏛️</span>
+                  <span>ICICI Bank</span>
+                </button>
+                <button type="button" class="pg-bank-btn" onclick="selectBank(this, 'Axis Bank')">
+                  <span class="bank-icon">🏦</span>
+                  <span>Axis Bank</span>
+                </button>
+                <button type="button" class="pg-bank-btn" onclick="selectBank(this, 'Kotak Mahindra')">
+                  <span class="bank-icon">🏛️</span>
+                  <span>Kotak Bank</span>
+                </button>
+                <button type="button" class="pg-bank-btn" onclick="selectBank(this, 'Punjab National Bank')">
+                  <span class="bank-icon">🏦</span>
+                  <span>PNB</span>
+                </button>
+              </div>
+
+              <div style="margin-top: 14px;">
+                <label class="pg-input-label">Or choose another bank</label>
+                <select id="pgAllBanksSelect" class="pg-input" style="width: 100%;">
+                  <option value="">-- Choose from 50+ Other Banks --</option>
+                  <option value="Bank of Baroda">Bank of Baroda</option>
+                  <option value="Canara Bank">Canara Bank</option>
+                  <option value="Union Bank of India">Union Bank of India</option>
+                  <option value="IndusInd Bank">IndusInd Bank</option>
+                  <option value="IDBI Bank">IDBI Bank</option>
+                  <option value="Federal Bank">Federal Bank</option>
+                  <option value="Yes Bank">Yes Bank</option>
+                </select>
+              </div>
+
+              <button type="button" class="pg-pay-btn" style="width: 100%; margin-top: 18px; height: 42px; font-size: 15px;" onclick="executeMockPayment('NetBanking')">
+                Proceed to Secure NetBanking Gateway
+              </button>
+            </div>
+          </div>
+
+          <!-- Cash on Delivery Pane -->
+          <div class="pg-pane" id="pgPane-cod">
+            <div class="pg-cod-container">
+              <div class="pg-cod-alert">
+                <span style="font-size: 24px;">📦</span>
+                <div>
+                  <b style="color: #065f46;">Doorstep Cash / UPI Delivery Available</b>
+                  <p style="font-size: 12px; margin-top: 2px; color: #047857;">Pay with cash or scan the courier agent's UPI QR when your shipment reaches your address.</p>
+                </div>
+              </div>
+
+              <div class="pg-captcha-box" style="margin-top: 16px;">
+                <label class="pg-input-label">Anti-Spam Verification Code *</label>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 6px;">
+                  <div class="pg-captcha-code" id="pgCodCaptchaCode">8492</div>
+                  <input type="text" id="pgCodCaptchaInput" class="pg-input" placeholder="4-digit code" maxlength="4" style="width: 140px; font-weight: 700; text-align: center; letter-spacing: 2px;" />
+                  <button type="button" class="slide-cta-btn" style="padding: 8px 12px; font-size: 12px;" onclick="generateCodCaptcha()">Refresh</button>
+                </div>
+              </div>
+
+              <button type="button" class="pg-pay-btn" style="width: 100%; margin-top: 20px; height: 42px; font-size: 15px; background: #059669;" onclick="verifyAndConfirmCod()">
+                Confirm Cash on Delivery Order
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Simulated 3D-Secure Bank OTP Modal Overlay -->
+      <div class="pg-otp-dialog-overlay" id="pgOtpDialog">
+        <div class="pg-otp-dialog-box">
+          <div class="pg-otp-header">
+            <span style="font-size: 24px;">🏛️</span>
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">ShopX 3D-Secure Bank Authentication</div>
+              <div style="font-size: 11px; color: #6b7280;">Verified by Visa / RuPay SecureCode</div>
+            </div>
+          </div>
+          <div class="pg-otp-body">
+            <p style="font-size: 12px; color: #374151; margin-bottom: 12px;">
+              A One-Time Password (OTP) has been dispatched to your registered mobile number for amount <b id="otpAmountDisplay">₹0</b>.
+            </p>
+            <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #3730a3; margin-bottom: 12px;">
+              ⚡ Auto-filled Demo Bank OTP: <b id="pgDemoOtpDisplay">729401</b>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">Enter Bank OTP *</label>
+              <input type="text" id="pgBankOtpInput" class="pg-input" value="729401" maxlength="6" style="text-align: center; letter-spacing: 4px; font-weight: 700; font-size: 16px;" />
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 14px;">
+              <button type="button" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #d1d5db; background: #f3f4f6; font-weight: 600; cursor: pointer;" onclick="cancel3DSecureOtp()">Cancel</button>
+              <button type="button" class="pg-pay-btn" style="flex: 2;" onclick="submit3DSecureOtp()">Authorize Payment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Realistic Bank Processing Overlay Spinner -->
+      <div class="pg-processing-overlay" id="pgProcessingOverlay">
+        <div class="pg-spinner-box">
+          <div class="pg-spinner-circle"></div>
+          <div class="pg-processing-title" id="pgProcessingTitle">Connecting to Payment Gateway...</div>
+          <div class="pg-processing-desc" id="pgProcessingDesc">Do not press back or refresh the page</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
