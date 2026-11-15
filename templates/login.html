@@ -440,7 +440,7 @@
 <body>
 
   <!-- Brand Logo Header -->
-  <a href="index.html" class="auth-logo-header" title="ShopX Home">
+  <a href="/store" onclick="if(window.location.protocol === 'file:') this.href='index.html';" class="auth-logo-header" title="ShopX Home">
     <span class="brand-shop">Shop</span><span class="brand-x">X</span>
     <span class="plus-badge">OFFICIAL</span>
   </a>
@@ -810,8 +810,9 @@
           localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
           document.cookie = `shopx_user_session=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=2592000; SameSite=Lax`;
 
+          const dest = window.location.protocol === "file:" ? "index.html" : "/store";
           setTimeout(() => {
-            window.location.href = "index.html";
+            window.location.href = dest;
           }, 800);
         } else {
           showAlert(data.message || "Authentication failed. Please check your credentials.");
@@ -829,8 +830,9 @@
           };
           localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
           showAlert("Signed in successfully (Offline mode). Redirecting...", true);
+          const dest = window.location.protocol === "file:" ? "index.html" : "/store";
           setTimeout(() => {
-            window.location.href = "index.html";
+            window.location.href = dest;
           }, 800);
         } else {
           showAlert("Invalid email or mobile format. Please enter a valid address.");

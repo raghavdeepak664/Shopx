@@ -35,6 +35,14 @@ def favicon():
 def store_page():
     return render_template("index.html")
 
+@app.route("/index.html")
+def index_html_page():
+    return render_template("index.html")
+
+@app.route("/login.html")
+def login_html_page():
+    return render_template("login.html")
+
 # API Endpoints
 @app.route("/api/products", methods=["GET"])
 def api_get_products():
