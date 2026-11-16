@@ -178,6 +178,21 @@
       </div>
     </div>
 
+    <!-- Email Diagnostics & Test Console -->
+    <div class="data-table-card" style="margin-bottom: 24px; padding: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="font-size: 16px; font-weight: 800;">📧 Email & OTP Dispatch Diagnostics</div>
+        <span style="font-size: 12px; background: #e0f2fe; color: #0284c7; padding: 4px 10px; border-radius: 6px; font-weight: 600;">Support Email: shopx.customercare@gmail.com</span>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+        <input type="email" id="testEmailInput" placeholder="Enter email to test (e.g. raghavdeepak664@gmail.com)" style="flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px;" value="raghavdeepak664@gmail.com" />
+        <button onclick="runEmailDiagnostic()" id="btnTestEmail" style="background: #ff9900; color: #111; font-weight: 700; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
+          🚀 Send Test OTP Email
+        </button>
+      </div>
+      <div id="emailDiagResult" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; font-size: 13px; font-family: monospace;"></div>
+    </div>
+
     <!-- Data Stream -->
     <div class="data-table-card">
       <div class="card-header">
@@ -214,6 +229,38 @@
   </div>
 
   <script>
+    async function runEmailDiagnostic() {
+      const input = document.getElementById("testEmailInput");
+      const btn = document.getElementById("btnTestEmail");
+      const resultDiv = document.getElementById("emailDiagResult");
+      const email = input.value.trim();
+      if (!email) return;
+
+      btn.disabled = true;
+      btn.textContent = "Testing delivery...";
+      resultDiv.style.display = "block";
+      resultDiv.innerHTML = `<span style="color: #64748b;">Testing real email dispatch to ${email}...</span>`;
+
+      try {
+        const res = await fetch(`/api/admin/test-email?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+        resultDiv.innerHTML = `
+          <div style="color: ${data.overall_status === 'DELIVERED' ? '#16a34a' : '#dc2626'}; font-weight: bold; margin-bottom: 8px;">
+            Status: ${data.overall_status}
+          </div>
+          <div><b>Target:</b> ${data.target_email}</div>
+          <div><b>SMTP Status:</b> ${data.smtp_status} (Configured: ${data.smtp_configured})</div>
+          <div><b>Google Apps Script Status:</b> ${data.google_relay_status} (Success: ${data.google_relay_success})</div>
+          <div style="margin-top: 8px; color: #475569; font-family: sans-serif; font-size: 12px; line-height: 1.5;"><b>Notice:</b> ${data.instructions}</div>
+        `;
+      } catch (err) {
+        resultDiv.textContent = "Error testing email: " + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🚀 Send Test OTP Email";
+      }
+    }
+
     // Fetch and render CSV rows
     async function loadLogs() {
       try {

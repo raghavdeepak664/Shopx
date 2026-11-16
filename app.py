@@ -7,6 +7,7 @@ import os
 import json
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, make_response
 import database
+import mail_service
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -284,6 +285,27 @@ def api_track_cart():
 
     database.track_cart_action(customer_name, product_id, title, brand, quantity, price, action, ip_addr)
     return jsonify({"success": True, "message": "Cart activity logged to Excel"})
+
+# Live Email Diagnostics & Test Dispatch Route
+@app.route("/api/admin/test-email", methods=["GET", "POST"])
+def api_test_email():
+    target = request.args.get("email")
+    if not target and request.is_json:
+        target = (request.get_json() or {}).get("email")
+    target = (target or "").strip() or "raghavdeepak664@gmail.com"
+    report = mail_service.test_email_dispatch(target)
+    return jsonify(report)
+
+@app.route("/api/admin/email-status", methods=["GET"])
+def api_email_status():
+    status = {
+        "support_email": mail_service.SUPPORT_EMAIL,
+        "smtp_configured": bool(mail_service.SMTP_USER and mail_service.SMTP_PASSWORD),
+        "smtp_user": mail_service.SMTP_USER or "(Not configured on Render)",
+        "google_sheets_configured": bool(mail_service.GOOGLE_SHEETS_WEBHOOK_URL),
+        "recent_outbox": mail_service.get_recent_outbox(10)
+    }
+    return jsonify(status)
 
 # Protected Admin / Direct File Downloads
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "shopx_secure_admin_2026")

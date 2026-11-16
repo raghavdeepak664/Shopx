@@ -83,24 +83,83 @@ def relay_via_google_script(to_email, subject, body_html, body_text=""):
         return False, "Google webhook URL not configured"
 
     try:
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sheet_row = [
+            now_str,
+            "PASSWORD_RESET_OTP" if "Verification Code" in subject else "EMAIL_NOTIFICATION",
+            to_email,
+            subject,
+            (body_text or body_html).strip()[:200]
+        ]
         payload = json.dumps({
             "action": "SEND_EMAIL",
             "to": to_email,
             "subject": subject,
             "body": body_text,
             "htmlBody": body_html,
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": now_str,
+            "row": sheet_row
         }).encode("utf-8")
         req = urllib.request.Request(
             GOOGLE_SHEETS_WEBHOOK_URL,
             data=payload,
             headers={"Content-Type": "application/json"}
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            content = resp.read().decode("utf-8", errors="ignore")
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            content = resp.read().decode("utf-8", errors="ignore").strip()
+            if "Success" in content:
+                return True, "Relayed to Google Apps Script (Success)"
+            elif "Error" in content:
+                return False, f"Google Apps Script Error: {content[:80]}"
             return True, f"Relayed to Google Apps Script ({content[:50]})"
     except Exception as e:
         return False, f"Google relay error: {str(e)}"
+
+def test_email_dispatch(to_email):
+    """Synchronously test both direct SMTP and Google Apps Script relay and return full diagnostic status."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    subject = f"🔐 ShopX Email Delivery Test [{now_str}]"
+    test_otp = "123456"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: Arial, sans-serif; background-color: #f3f4f6; padding: 20px;">
+      <div style="max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 8px; padding: 24px; border: 1px solid #e5e7eb;">
+        <h2 style="color: #ff9900; margin-top: 0;">ShopX Email Delivery Test</h2>
+        <p>This is a real diagnostic verification email sent to confirm OTP and notifications delivery.</p>
+        <div style="background: #fef3c7; border: 2px dashed #f59e0b; padding: 12px; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 4px; color: #92400e; margin: 16px 0;">{test_otp}</div>
+        <p style="font-size: 13px; color: #4b5563;">Verification Code valid for 10 minutes. If you received this, your email delivery pipeline is working 100%.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 11px; color: #9ca3af; margin: 0;">ShopX Official Security Service &bull; {SUPPORT_EMAIL}</p>
+      </div>
+    </body>
+    </html>
+    """
+    text = f"ShopX Email Delivery Test. Verification OTP: {test_otp}."
+
+    # 1. Test Direct SMTP
+    smtp_ok, smtp_msg = send_via_smtp(to_email, subject, html, text)
+    # 2. Test Google Apps Script Relay
+    relay_ok, relay_msg = relay_via_google_script(to_email, subject, html, text)
+
+    return {
+        "timestamp": now_str,
+        "target_email": to_email,
+        "smtp_configured": bool(SMTP_USER and SMTP_PASSWORD),
+        "smtp_user": SMTP_USER or "(Not configured on Render)",
+        "smtp_success": smtp_ok,
+        "smtp_status": smtp_msg,
+        "google_sheets_webhook_url": GOOGLE_SHEETS_WEBHOOK_URL,
+        "google_relay_success": relay_ok,
+        "google_relay_status": relay_msg,
+        "overall_status": "DELIVERED" if (smtp_ok or relay_ok) else "FAILED",
+        "instructions": (
+            "To receive emails into your inbox: "
+            "1. In your Google Sheet -> Extensions -> Apps Script (Code.gs), add MailApp.sendEmail(). "
+            "2. Or in Render Dashboard -> Environment, add SMTP_USER=shopx.customercare@gmail.com and SMTP_PASSWORD=[16-char App Password]."
+        )
+    }
 
 def dispatch_email_async(to_email, subject, body_html, body_text="", reply_to=None, metadata=None):
     """Send email asynchronously with immediate outbox recording and automatic fallback."""
