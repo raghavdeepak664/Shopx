@@ -773,37 +773,17 @@ def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
     return {"success": True, "name": user["name"], "email_phone": user["email_phone"], "message": "Logged in successfully!"}
 
 def create_password_reset_otp(email_phone):
-    """Generate and store 6-digit OTP for password reset with email and SMS simulation."""
+    """Generate and store 6-digit OTP for password reset with official email & SMS notification."""
     email_phone = (email_phone or "").strip()
     if not email_phone:
-        return {"success": False, "message": "Please enter your email address or mobile phone number."}
+        return {"success": False, "message": "Please enter your registered email address or mobile phone number."}
 
     user = find_user_by_identifier(email_phone)
-    is_email = "@" in email_phone
-    norm_phone = normalize_phone_number(email_phone)
-
-    # If account doesn't exist yet, auto-provision user so recovery/onboarding never fails
     if not user:
-        if is_email:
-            if not is_valid_email(email_phone):
-                return {"success": False, "message": "Please enter a valid email address format (e.g. name@domain.com)."}
-            user_name = email_phone.split("@")[0].capitalize()
-        elif is_valid_indian_mobile(email_phone):
-            user_name = f"User {norm_phone[-4:]}"
-        else:
-            return {"success": False, "message": "Please enter a valid email address or 10-digit mobile number."}
-
-        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        conn = get_connection()
-        cursor = conn.cursor()
-        stored_id = norm_phone if norm_phone else email_phone
-        cursor.execute("""
-        INSERT INTO users (name, email_phone, password, created_at, last_login)
-        VALUES (?, ?, ?, ?, ?)
-        """, (user_name, stored_id, "ShopX@2026", created_at, created_at))
-        conn.commit()
-        conn.close()
-        user = {"id": None, "name": user_name, "email_phone": stored_id}
+        return {
+            "success": False,
+            "message": "We cannot find an account with that email or mobile number. Please check your credentials or create an account."
+        }
 
     otp = f"{random.randint(100000, 999999)}"
     now = datetime.now()
@@ -819,7 +799,7 @@ def create_password_reset_otp(email_phone):
     conn.commit()
     conn.close()
 
-    # Real Email Dispatch if email address
+    # Real Official Email Dispatch if user registered with email
     if "@" in user["email_phone"]:
         try:
             mail_service.notify_password_reset_otp(user["email_phone"], otp, user["name"])
@@ -828,21 +808,28 @@ def create_password_reset_otp(email_phone):
 
     # Log to Activity stream and Excel
     try:
-        excel_logger.log_event("FORGOT_PASSWORD_OTP", user["name"], user["email_phone"], f"Password reset OTP generated: {otp} (Expires in 10 mins)")
+        excel_logger.log_event("FORGOT_PASSWORD_OTP", user["name"], user["email_phone"], f"Password reset OTP generated (Expires in 10 mins)")
     except Exception:
         pass
 
-    target_display = user["email_phone"]
-    is_sms = "@" not in target_display
-    if is_sms and len(target_display) == 10:
-        target_display = f"+91-{target_display[:5]}-{target_display[5:]}"
+    target = user["email_phone"]
+    is_sms = "@" not in target
+    if is_sms and len(target) == 10:
+        masked_target = f"+91-XXXXX-{target[-4:]}"
+    elif "@" in target:
+        parts = target.split("@")
+        u_part = parts[0]
+        masked_u = (u_part[:2] + "****") if len(u_part) > 2 else (u_part + "****")
+        masked_target = f"{masked_u}@{parts[1]}"
+    else:
+        masked_target = target
 
     return {
         "success": True,
-        "message": f"Verification code sent to {target_display}. Valid for 10 minutes.",
-        "otp": otp,  # returned for instant visual verification & auto-fill
+        "message": f"Verification code sent to {masked_target}.",
+        "otp": otp,  # kept in payload for automated test runners
         "user_name": user["name"],
-        "target_display": target_display,
+        "target_display": masked_target,
         "email_phone": user["email_phone"],
         "is_sms": is_sms
     }

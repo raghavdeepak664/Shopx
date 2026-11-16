@@ -9,3 +9,4 @@ __pycache__/
 env/
 shopx_user_data.xlsx
 shopx_activity_log.csv
+email_outbox.log
