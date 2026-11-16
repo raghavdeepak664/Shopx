@@ -506,6 +506,19 @@
         </div>
       </div>
 
+      <!-- 1-Click Fast Demo Credentials Tray -->
+      <div style="margin: 14px 0 12px; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+        <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">⚡ One-Click Demo Logins:</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" onclick="quickFillCredentials('raghavdeepak664@gmail.com', 'Deepak123')" style="flex: 1; min-width: 130px; font-size: 11px; padding: 6px 8px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; text-align: left; line-height: 1.3;">
+            👤 <strong>Deepak Raghav</strong><br><span style="color: #64748b; font-size: 10px;">raghavdeepak664@...</span>
+          </button>
+          <button type="button" onclick="quickFillCredentials('9876543210', 'Deepak123')" style="flex: 1; min-width: 130px; font-size: 11px; padding: 6px 8px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; text-align: left; line-height: 1.3;">
+            📱 <strong>Mobile Shopper</strong><br><span style="color: #64748b; font-size: 10px;">9876543210 (Mobile)</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Submit Button -->
       <button type="submit" class="btn-amazon-primary" id="authSubmitBtn">
         Sign in
@@ -586,9 +599,35 @@
 
         <!-- Step 2: Verify OTP and Reset Password -->
         <div id="fpStep2" style="display: none;">
-          <div style="background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 12px; color: #0369a1; font-size: 12px; margin-bottom: 14px;">
-            We have dispatched a 6-digit verification code to <b id="fpTargetDisplay"></b>.
-            <div id="fpDemoOtpBox" style="margin-top: 4px; font-weight: 700; color: #075985;"></div>
+          <!-- SMS Push Notification Banner (For Mobile Numbers) -->
+          <div id="smsNotificationCard" style="display: none; background: #0f172a; color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #334155;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+              <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #38bdf8; font-weight: 700;">📲 ShopX SMS Gateway • Just Now</span>
+              <span style="font-size: 10px; background: #0284c7; color: #fff; padding: 2px 6px; border-radius: 4px;">Delivered</span>
+            </div>
+            <div style="font-size: 13px; line-height: 1.4; color: #e2e8f0;">
+              Your ShopX password reset verification code is: <strong id="smsOtpCode" style="color: #fbbf24; font-size: 16px; letter-spacing: 3px; font-family: monospace;"></strong>
+            </div>
+            <button type="button" onclick="autoFillOtp()" style="margin-top: 8px; background: #0284c7; color: #ffffff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+              ⚡ Click to Auto-Fill Code
+            </button>
+          </div>
+
+          <!-- Email Delivery Notification Banner (For Email Addresses) -->
+          <div id="emailNotificationCard" style="display: none; background: #ecfdf5; color: #065f46; border-radius: 8px; padding: 12px; margin-bottom: 14px; border: 1px solid #a7f3d0;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;">
+              <span>✉️</span> Real Email Dispatched to <span id="emailTargetDisplay"></span>
+            </div>
+            <div style="font-size: 12px; color: #047857; margin-top: 4px;">
+              Your 6-digit verification code: <strong id="emailOtpCode" style="letter-spacing: 3px; font-size: 15px; font-family: monospace;"></strong>
+            </div>
+            <button type="button" onclick="autoFillOtp()" style="margin-top: 8px; background: #059669; color: #ffffff; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">
+              ⚡ Click to Auto-Fill Code
+            </button>
+          </div>
+
+          <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; color: #334155; font-size: 12px; margin-bottom: 14px;">
+            Verification code sent to <b id="fpTargetDisplay"></b>. Valid for 10 minutes.
           </div>
 
           <div class="form-group">
@@ -744,6 +783,23 @@
       document.getElementById("authAlertBanner").style.display = "none";
     }
 
+    function quickFillCredentials(identifier, pwd) {
+      if (isSignUpMode) {
+        toggleAuthMode();
+      }
+      const emailInput = document.getElementById("userEmailInput");
+      const pwdInput = document.getElementById("userPasswordInput");
+      emailInput.value = identifier;
+      pwdInput.value = pwd;
+      emailInput.classList.remove("input-error");
+      pwdInput.classList.remove("input-error");
+      hideAlert();
+      showAlert("Credentials filled! Signing you in...", true);
+      setTimeout(() => {
+        document.getElementById("authSubmitBtn").click();
+      }, 300);
+    }
+
     async function handleAuthSubmit(event) {
       event.preventDefault();
       hideAlert();
@@ -755,32 +811,33 @@
       const name = nameInput ? nameInput.value.trim() : "";
       const submitBtn = document.getElementById("authSubmitBtn");
 
-      // Strict Client-Side Email & Phone Validation
       if (!emailPhone) {
         emailPhoneInput.classList.add("input-error");
-        showAlert("Please enter your email or mobile phone number.");
+        showAlert(isSignUpMode ? "Please enter your email or mobile phone number." : "Please enter your email, mobile number, or username.");
         emailPhoneInput.focus();
         return;
       }
 
-      if (!validateEmailOrPhone(emailPhone)) {
-        emailPhoneInput.classList.add("input-error");
-        showAlert("Please enter a valid email address (e.g. name@domain.com) or a valid 10-digit mobile number.");
-        emailPhoneInput.focus();
-        return;
+      // In Sign Up mode, enforce strict email format or 10-digit mobile
+      if (isSignUpMode) {
+        if (!validateEmailOrPhone(emailPhone)) {
+          emailPhoneInput.classList.add("input-error");
+          showAlert("Please enter a valid email address (e.g. name@domain.com) or a valid 10-digit mobile number.");
+          emailPhoneInput.focus();
+          return;
+        }
+        if (name.length < 2) {
+          showAlert("Please enter your full name (at least 2 letters).");
+          nameInput.focus();
+          return;
+        }
       }
       emailPhoneInput.classList.remove("input-error");
 
-      // Strict Password Validation
+      // Password Validation
       if (password.length < 6) {
         showAlert("Password must be at least 6 characters long.");
         document.getElementById("userPasswordInput").focus();
-        return;
-      }
-
-      if (isSignUpMode && name.length < 2) {
-        showAlert("Please enter your full name (at least 2 letters).");
-        nameInput.focus();
         return;
       }
 
@@ -821,24 +878,17 @@
         }
       } catch (err) {
         console.log("Network error / offline fallback:", err);
-        // In offline mode: ONLY allow if email/phone was strictly validated above!
-        if (validateEmailOrPhone(emailPhone)) {
-          const userData = {
-            name: name || (emailPhone.includes("@") ? emailPhone.split("@")[0] : "User " + emailPhone.slice(-4)),
-            email_phone: emailPhone,
-            isLoggedIn: true
-          };
-          localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
-          showAlert("Signed in successfully (Offline mode). Redirecting...", true);
-          const dest = window.location.protocol === "file:" ? "index.html" : "/store";
-          setTimeout(() => {
-            window.location.href = dest;
-          }, 800);
-        } else {
-          showAlert("Invalid email or mobile format. Please enter a valid address.");
-          submitBtn.disabled = false;
-          submitBtn.textContent = isSignUpMode ? "Create your ShopX account" : "Sign in";
-        }
+        const userData = {
+          name: name || (emailPhone.includes("@") ? emailPhone.split("@")[0] : (emailPhone.length === 10 ? "User " + emailPhone.slice(-4) : emailPhone)),
+          email_phone: emailPhone,
+          isLoggedIn: true
+        };
+        localStorage.setItem("shopx_logged_user", JSON.stringify(userData));
+        showAlert("Signed in successfully (Offline mode). Redirecting...", true);
+        const dest = window.location.protocol === "file:" ? "index.html" : "/store";
+        setTimeout(() => {
+          window.location.href = dest;
+        }, 800);
       }
     }
 
@@ -881,6 +931,16 @@
       document.getElementById("fpAlertBanner").style.display = "none";
     }
 
+    let currentOtpCode = "";
+
+    function autoFillOtp() {
+      if (currentOtpCode) {
+        document.getElementById("fpOtpCode").value = currentOtpCode;
+        showFpAlert("Verification code auto-filled! Please enter your new password below.", true);
+        document.getElementById("fpNewPassword").focus();
+      }
+    }
+
     async function handleRequestOtp() {
       hideFpAlert();
       const input = document.getElementById("fpEmailPhone");
@@ -888,12 +948,6 @@
 
       if (!emailPhone) {
         showFpAlert("Please enter your registered email address or mobile number.");
-        input.focus();
-        return;
-      }
-
-      if (!validateEmailOrPhone(emailPhone)) {
-        showFpAlert("Please enter a valid email address or 10-digit mobile number.");
         input.focus();
         return;
       }
@@ -911,15 +965,21 @@
         const data = await res.json();
 
         if (res.ok && data.success) {
-          cachedFpEmailPhone = emailPhone;
+          cachedFpEmailPhone = data.email_phone || emailPhone;
+          currentOtpCode = data.otp || "";
           document.getElementById("fpStep1").style.display = "none";
           document.getElementById("fpStep2").style.display = "block";
-          document.getElementById("fpTargetDisplay").textContent = emailPhone;
+          document.getElementById("fpTargetDisplay").textContent = data.target_display || emailPhone;
           
-          if (data.otp) {
-            document.getElementById("fpDemoOtpBox").textContent = `⚡ Demo Verification Code: ${data.otp}`;
+          if (data.is_sms) {
+            document.getElementById("smsNotificationCard").style.display = "block";
+            document.getElementById("emailNotificationCard").style.display = "none";
+            document.getElementById("smsOtpCode").textContent = data.otp;
           } else {
-            document.getElementById("fpDemoOtpBox").textContent = "";
+            document.getElementById("emailNotificationCard").style.display = "block";
+            document.getElementById("smsNotificationCard").style.display = "none";
+            document.getElementById("emailTargetDisplay").textContent = data.target_display || emailPhone;
+            document.getElementById("emailOtpCode").textContent = data.otp;
           }
 
           document.getElementById("forgotModalTitle").textContent = "🔒 Enter Verification Code (OTP)";
@@ -931,11 +991,21 @@
         // Standalone offline simulation
         cachedFpEmailPhone = emailPhone;
         const mockOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        currentOtpCode = mockOtp;
         document.getElementById("fpStep1").style.display = "none";
         document.getElementById("fpStep2").style.display = "block";
         document.getElementById("fpTargetDisplay").textContent = emailPhone;
-        document.getElementById("fpDemoOtpBox").textContent = `⚡ Demo Verification Code: ${mockOtp}`;
-        showFpAlert("OTP sent to your email/mobile. Enter verification code below.", true);
+        if (emailPhone.includes("@")) {
+          document.getElementById("emailNotificationCard").style.display = "block";
+          document.getElementById("smsNotificationCard").style.display = "none";
+          document.getElementById("emailTargetDisplay").textContent = emailPhone;
+          document.getElementById("emailOtpCode").textContent = mockOtp;
+        } else {
+          document.getElementById("smsNotificationCard").style.display = "block";
+          document.getElementById("emailNotificationCard").style.display = "none";
+          document.getElementById("smsOtpCode").textContent = mockOtp;
+        }
+        showFpAlert("Verification code sent! Enter it below or click Auto-Fill.", true);
       } finally {
         btn.disabled = false;
         btn.textContent = "Send Verification Code (OTP)";

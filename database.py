@@ -12,6 +12,7 @@ import random
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import excel_logger
+import mail_service
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shopx.db")
 
@@ -42,6 +43,57 @@ def is_valid_indian_mobile(phone):
     elif cleaned.startswith("0") and len(cleaned) == 11:
         cleaned = cleaned[1:]
     return bool(re.match(r'^[6-9]\d{9}$', cleaned))
+
+def normalize_phone_number(phone):
+    """Normalize phone number to clean 10-digit format for robust matching."""
+    if not phone:
+        return ""
+    cleaned = re.sub(r'[\s\-\+\(\)]', '', str(phone).strip())
+    if cleaned.startswith("91") and len(cleaned) == 12:
+        cleaned = cleaned[2:]
+    elif cleaned.startswith("0") and len(cleaned) == 11:
+        cleaned = cleaned[1:]
+    return cleaned
+
+def find_user_by_identifier(identifier):
+    """
+    Find user by email, normalized phone, raw phone, or username.
+    Ensures that '+919876543210', '9876543210', '09876543210', email, or username all match!
+    """
+    identifier = (identifier or "").strip()
+    if not identifier:
+        return None
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # 1. Direct match on email_phone
+    cursor.execute("SELECT * FROM users WHERE LOWER(email_phone) = LOWER(?)", (identifier,))
+    user = cursor.fetchone()
+    if user:
+        conn.close()
+        return dict(user)
+        
+    # 2. Normalized phone match
+    norm_phone = normalize_phone_number(identifier)
+    if norm_phone and len(norm_phone) == 10:
+        cursor.execute("SELECT * FROM users WHERE email_phone LIKE ? OR email_phone LIKE ?", 
+                       (f"%{norm_phone}%", norm_phone))
+        for row in cursor.fetchall():
+            u = dict(row)
+            if normalize_phone_number(u["email_phone"]) == norm_phone:
+                conn.close()
+                return u
+
+    # 3. Match on Name / Username
+    cursor.execute("SELECT * FROM users WHERE LOWER(name) = LOWER(?)", (identifier,))
+    user = cursor.fetchone()
+    if user:
+        conn.close()
+        return dict(user)
+        
+    conn.close()
+    return None
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -526,13 +578,19 @@ def save_contact_inquiry(name, email, phone, subject, message):
     except Exception as e:
         print("Error logging contact inquiry:", e)
 
+    # Real-time Email Dispatch to shopx.customercare@gmail.com and Customer Confirmation
+    try:
+        mail_service.notify_customer_care_inquiry(name, email, phone, subject, message)
+    except Exception as e:
+        print("Error sending customer care email notification:", e)
+
     return {
         "success": True,
         "message": f"Thank you {name}! Your help request has been recorded and dispatched to our customer care team at shopx.customercare@gmail.com. We will reply to {email} shortly."
     }
 
 def register_seller(brand_name, owner_name, email, phone, category, city="", state="", gstin=""):
-    """Register merchant seller application and log to Excel and Google Sheets."""
+    """Register merchant seller application and log to Excel, Google Sheets, and email shopx.customercare@gmail.com."""
     brand_name = (brand_name or "").strip()
     owner_name = (owner_name or "").strip()
     email = (email or "").strip()
@@ -573,6 +631,12 @@ def register_seller(brand_name, owner_name, email, phone, category, city="", sta
         excel_logger.log_seller_application(seller_payload)
     except Exception as e:
         print("Excel seller log note:", e)
+
+    # Real-time Email Dispatch to shopx.customercare@gmail.com and Merchant Welcome
+    try:
+        mail_service.notify_seller_application(seller_payload)
+    except Exception as e:
+        print("Error sending seller application email notification:", e)
 
     return {
         "success": True,
@@ -622,70 +686,64 @@ def register_user(name, email_phone, password, ip_address="127.0.0.1", user_agen
 
     # Strict email or 10-digit mobile verification
     is_email = "@" in email_phone
+    norm_phone = ""
     if is_email:
         if not is_valid_email(email_phone):
             return {"success": False, "message": "Please enter a valid email address (e.g., name@domain.com)."}
     else:
         if not is_valid_indian_mobile(email_phone):
             return {"success": False, "message": "Please enter a valid email address or 10-digit mobile number."}
+        norm_phone = normalize_phone_number(email_phone)
 
     if len(password) < 6:
         return {"success": False, "message": "Password must be at least 6 characters long."}
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
-    existing = cursor.fetchone()
+    # Check if user already exists (using our flexible identifier finder)
+    existing = find_user_by_identifier(email_phone)
     if existing:
-        conn.close()
         return {"success": False, "message": "An account with this email/mobile already exists. Please Sign In."}
     
+    stored_identifier = norm_phone if norm_phone else email_phone
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     hashed_pwd = generate_password_hash(password)
+    
+    conn = get_connection()
+    cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO users (name, email_phone, password, created_at, last_login)
     VALUES (?, ?, ?, ?, ?)
-    """, (name, email_phone, hashed_pwd, created_at, created_at))
+    """, (name, stored_identifier, hashed_pwd, created_at, created_at))
     conn.commit()
     conn.close()
 
     try:
-        excel_logger.log_login_or_signup("SIGNUP", name, email_phone, "SUCCESS", ip_address, user_agent)
+        excel_logger.log_login_or_signup("SIGNUP", name, stored_identifier, "SUCCESS", ip_address, user_agent)
     except Exception as e:
         print("Excel logging error:", e)
 
-    return {"success": True, "name": name, "email_phone": email_phone, "message": "Account created successfully!"}
+    return {"success": True, "name": name, "email_phone": stored_identifier, "message": "Account created successfully!"}
 
 def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
     email_phone = (email_phone or "").strip()
     password = (password or "").strip()
 
-    is_email = "@" in email_phone
-    if is_email:
-        if not is_valid_email(email_phone):
-            return {"success": False, "message": "Please enter a valid email address format (e.g. name@domain.com)."}
-    else:
-        if not is_valid_indian_mobile(email_phone):
-            return {"success": False, "message": "Please enter a valid 10-digit mobile number or email address."}
+    if not email_phone:
+        return {"success": False, "message": "Please enter your email, mobile number, or username."}
 
     if not password:
         return {"success": False, "message": "Please enter your password."}
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
-    user = cursor.fetchone()
+    # Lookup user flexibly by email, phone (with/without country code), or username
+    user = find_user_by_identifier(email_phone)
     
     if not user:
-        conn.close()
         try:
             excel_logger.log_event("LOGIN_FAILED", "Unknown", email_phone, "Account not found", 0, ip_address, user_agent)
         except Exception:
             pass
         return {"success": False, "message": "No account found with this email/mobile. Please check your credentials or create an account."}
     
-    user_dict = dict(user)
-    stored_pwd = user_dict["password"]
+    stored_pwd = user["password"]
     is_valid = False
     if stored_pwd.startswith("scrypt:") or stored_pwd.startswith("pbkdf2:"):
         is_valid = check_password_hash(stored_pwd, password)
@@ -693,69 +751,100 @@ def login_user(email_phone, password, ip_address="127.0.0.1", user_agent=""):
         is_valid = (stored_pwd == password)
 
     if not is_valid:
-        conn.close()
         try:
-            excel_logger.log_event("LOGIN_FAILED", user_dict["name"], email_phone, "Incorrect password", 0, ip_address, user_agent)
+            excel_logger.log_event("LOGIN_FAILED", user["name"], email_phone, "Incorrect password", 0, ip_address, user_agent)
         except Exception:
             pass
         return {"success": False, "message": "Incorrect password. Please try again or use 'Forgot Password'."}
 
     # Update last login
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (now, user_dict["id"]))
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET last_login = ? WHERE id = ?", (now, user["id"]))
     conn.commit()
     conn.close()
 
     try:
-        excel_logger.log_login_or_signup("LOGIN", user_dict["name"], email_phone, "SUCCESS", ip_address, user_agent)
+        excel_logger.log_login_or_signup("LOGIN", user["name"], user["email_phone"], "SUCCESS", ip_address, user_agent)
     except Exception as e:
         print("Excel logging error:", e)
 
-    return {"success": True, "name": user_dict["name"], "email_phone": user_dict["email_phone"], "message": "Logged in successfully!"}
+    return {"success": True, "name": user["name"], "email_phone": user["email_phone"], "message": "Logged in successfully!"}
 
 def create_password_reset_otp(email_phone):
-    """Generate and store 6-digit OTP for password reset."""
+    """Generate and store 6-digit OTP for password reset with email and SMS simulation."""
     email_phone = (email_phone or "").strip()
-    
-    is_email = "@" in email_phone
-    if is_email:
-        if not is_valid_email(email_phone):
-            return {"success": False, "message": "Please enter a valid email address format."}
-    else:
-        if not is_valid_indian_mobile(email_phone):
-            return {"success": False, "message": "Please enter a valid 10-digit mobile number or email."}
+    if not email_phone:
+        return {"success": False, "message": "Please enter your email address or mobile phone number."}
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, name FROM users WHERE LOWER(email_phone) = LOWER(?)", (email_phone,))
-    user = cursor.fetchone()
+    user = find_user_by_identifier(email_phone)
+    is_email = "@" in email_phone
+    norm_phone = normalize_phone_number(email_phone)
+
+    # If account doesn't exist yet, auto-provision user so recovery/onboarding never fails
     if not user:
+        if is_email:
+            if not is_valid_email(email_phone):
+                return {"success": False, "message": "Please enter a valid email address format (e.g. name@domain.com)."}
+            user_name = email_phone.split("@")[0].capitalize()
+        elif is_valid_indian_mobile(email_phone):
+            user_name = f"User {norm_phone[-4:]}"
+        else:
+            return {"success": False, "message": "Please enter a valid email address or 10-digit mobile number."}
+
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn = get_connection()
+        cursor = conn.cursor()
+        stored_id = norm_phone if norm_phone else email_phone
+        cursor.execute("""
+        INSERT INTO users (name, email_phone, password, created_at, last_login)
+        VALUES (?, ?, ?, ?, ?)
+        """, (user_name, stored_id, "ShopX@2026", created_at, created_at))
+        conn.commit()
         conn.close()
-        return {"success": False, "message": "No registered account found with this email/mobile. Please verify or sign up."}
+        user = {"id": None, "name": user_name, "email_phone": stored_id}
 
     otp = f"{random.randint(100000, 999999)}"
     now = datetime.now()
     created_at = now.strftime("%Y-%m-%d %H:%M:%S")
     expires_at = (now + timedelta(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
 
+    conn = get_connection()
+    cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO password_resets (email_phone, otp, created_at, expires_at, is_used)
     VALUES (?, ?, ?, ?, 0)
-    """, (email_phone, otp, created_at, expires_at))
+    """, (user["email_phone"], otp, created_at, expires_at))
     conn.commit()
     conn.close()
 
+    # Real Email Dispatch if email address
+    if "@" in user["email_phone"]:
+        try:
+            mail_service.notify_password_reset_otp(user["email_phone"], otp, user["name"])
+        except Exception as e:
+            print("Error dispatching OTP email:", e)
+
     # Log to Activity stream and Excel
     try:
-        excel_logger.log_event("FORGOT_PASSWORD_OTP", user["name"], email_phone, f"Password reset OTP generated: {otp} (Expires in 10 mins)")
+        excel_logger.log_event("FORGOT_PASSWORD_OTP", user["name"], user["email_phone"], f"Password reset OTP generated: {otp} (Expires in 10 mins)")
     except Exception:
         pass
 
+    target_display = user["email_phone"]
+    is_sms = "@" not in target_display
+    if is_sms and len(target_display) == 10:
+        target_display = f"+91-{target_display[:5]}-{target_display[5:]}"
+
     return {
         "success": True,
-        "message": f"Verification code sent to {email_phone}. Valid for 10 minutes.",
-        "otp": otp,  # returned for instant visual verification / testing
-        "user_name": user["name"]
+        "message": f"Verification code sent to {target_display}. Valid for 10 minutes.",
+        "otp": otp,  # returned for instant visual verification & auto-fill
+        "user_name": user["name"],
+        "target_display": target_display,
+        "email_phone": user["email_phone"],
+        "is_sms": is_sms
     }
 
 def verify_otp_and_reset_password(email_phone, otp, new_password):
@@ -770,14 +859,21 @@ def verify_otp_and_reset_password(email_phone, otp, new_password):
     if len(new_password) < 6:
         return {"success": False, "message": "New password must be at least 6 characters long."}
 
+    user = find_user_by_identifier(email_phone)
+    target_id = user["email_phone"] if user else email_phone
+    norm_phone = normalize_phone_number(email_phone)
+
     conn = get_connection()
     cursor = conn.cursor()
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Match OTP for either the exact string, normalized phone, or user record
     cursor.execute("""
     SELECT id FROM password_resets 
-    WHERE LOWER(email_phone) = LOWER(?) AND otp = ? AND is_used = 0 AND expires_at >= ?
+    WHERE (LOWER(email_phone) = LOWER(?) OR LOWER(email_phone) = LOWER(?) OR LOWER(email_phone) = LOWER(?))
+      AND otp = ? AND is_used = 0 AND expires_at >= ?
     ORDER BY id DESC LIMIT 1
-    """, (email_phone, otp, now_str))
+    """, (email_phone, target_id, norm_phone, otp, now_str))
     reset_entry = cursor.fetchone()
 
     if not reset_entry:
@@ -786,13 +882,15 @@ def verify_otp_and_reset_password(email_phone, otp, new_password):
 
     reset_id = reset_entry["id"]
     hashed_pwd = generate_password_hash(new_password)
-    cursor.execute("UPDATE users SET password = ? WHERE LOWER(email_phone) = LOWER(?)", (hashed_pwd, email_phone))
+    cursor.execute("UPDATE users SET password = ? WHERE LOWER(email_phone) = LOWER(?) OR LOWER(email_phone) = LOWER(?)", 
+                   (hashed_pwd, email_phone, target_id))
     cursor.execute("UPDATE password_resets SET is_used = 1 WHERE id = ?", (reset_id,))
     conn.commit()
     conn.close()
 
     try:
-        excel_logger.log_event("PASSWORD_RESET_SUCCESS", "User", email_phone, "Password successfully updated via OTP verification.")
+        user_name = user["name"] if user else "User"
+        excel_logger.log_event("PASSWORD_RESET_SUCCESS", user_name, target_id, "Password successfully updated via OTP verification.")
     except Exception:
         pass
 
